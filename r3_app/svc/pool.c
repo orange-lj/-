@@ -21,9 +21,10 @@
 
 
 #include "pool.h"
-#include "list.h"
-#include "lock.h"
-#include "defines.h"
+#include "../common/list.h"
+//#include "../common/lock.h"
+#include "../common/defines.h"
+#include"../common/win32_ntddk.h"
 
 #ifndef KERNEL_MODE
 #ifdef _M_ARM64EC

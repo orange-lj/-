@@ -13,3 +13,8 @@ QueueServer::QueueServer(PipeServer* pipeServer)
 
     pipeServer->Register(MSGID_QUEUE, this, Handler);
 }
+
+MSG_HEADER* QueueServer::Handler(void* _this, MSG_HEADER* msg)
+{
+    return nullptr;
+}

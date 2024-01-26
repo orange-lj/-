@@ -69,6 +69,18 @@ SBIEAPI_EXPORT LONG SbieApi_GetVersionEx(
 	WCHAR* version_string,          // WCHAR [16]
 	ULONG* abi_version);
 
+SBIEAPI_EXPORT
+LONG SbieApi_Call(ULONG api_code, LONG arg_num, ...);
+
+SBIEAPI_EXPORT
+ULONG SbieApi_GetMessage(
+	ULONG* MessageNum,
+	ULONG SessionId,
+	ULONG* MessageId,
+	ULONG* Pid,
+	wchar_t* Buffer,
+	ULONG Length);
+
 #ifdef __cplusplus
 }
 #endif

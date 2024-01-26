@@ -1,14 +1,15 @@
 #include"sbiedll.h"
 #include"dll.h"
 #include"../low/lowdata.h"
-
+#include"../common/my_version.h"
+#include"../r0_drv/api_defs.h"
 //变量
 void* m_sbielow_ptr = NULL;
 ULONG m_sbielow_len = 0;
 //增加两个偏移量变量来替换“头”和“尾”的依赖关系
 ULONG m_sbielow_start_offset = 0;
 ULONG m_sbielow_data_offset = 0;
-
+ULONG* m_syscall_data = NULL;
 void* m_sbielow32_ptr = NULL;
 ULONG m_sbielow32_len = 0;
 ULONG m_sbielow32_detour_offset = 0;
@@ -118,4 +119,168 @@ ULONG SbieDll_InjectLow_InitHelper()
         }
     }
     return 0;
+}
+
+
+ULONG SbieDll_InjectLow_InitSyscalls(BOOLEAN drv_init) 
+{
+    const WCHAR* _SbieDll = L"\\" SBIEDLL L".dll";
+    WCHAR sbie_home[512];
+    ULONG status;
+    ULONG len;
+    SBIELOW_EXTRA_DATA* extra;
+    WCHAR* ptr;
+    ULONG* syscall_data;
+    //获取SbieDll位置
+    if (drv_init)
+    {
+        status = SbieApi_GetHomePath(NULL, 0, sbie_home, 512);
+        if (status != 0)
+            return status;
+    }
+    else
+    {
+        GetModuleFileName(Dll_Instance, sbie_home, 512);
+        ptr = wcsrchr(sbie_home, L'\\');
+        if (ptr)
+            *ptr = L'\0';
+    }
+#define ULONG_DIFF(b,a) ((ULONG)((ULONG_PTR)(b) - (ULONG_PTR)(a)))
+    //从驱动程序获取syscall的列表
+    if (!m_syscall_data) {
+        syscall_data = (ULONG*)HeapAlloc(GetProcessHeap(), 0, 8192);
+        if (!syscall_data)
+            return STATUS_INSUFFICIENT_RESOURCES;
+        *syscall_data = 0;
+    }
+    else 
+    {
+        syscall_data = m_syscall_data;
+    }
+    if (drv_init)
+    {
+        //
+        //从驱动程序获取完整的系统调用列表
+        //
+
+        status = SbieApi_Call(API_QUERY_SYSCALLS, 1, (ULONG_PTR)syscall_data);
+        if (status != 0)
+            return status;
+
+        len = *syscall_data;
+        if ((!len) || (len & 3) || (len > 4096))
+            return STATUS_INVALID_IMAGE_FORMAT;
+    }
+    else
+    {
+        //
+        //创建最小化的无人驾驶数据
+        //
+
+        *syscall_data = sizeof(ULONG) + sizeof(ULONG); // + 248; // total_size 4, extra_data_offset 4, work area sizeof(INJECT_DATA)
+
+        const char* NtdllExports[] = NATIVE_FUNCTION_NAMES;
+        for (ULONG i = 0; i < NATIVE_FUNCTION_COUNT; ++i) {
+            void* func_ptr = GetProcAddress(Dll_Ntdll, NtdllExports[i]);
+            memcpy((void*)((ULONG_PTR)syscall_data + (sizeof(ULONG) + sizeof(ULONG)) + (NATIVE_FUNCTION_SIZE * i)), func_ptr, NATIVE_FUNCTION_SIZE);
+        }
+
+        len = *syscall_data;
+    }
+    //
+    // syscall_data中的第二个ULONG指向我们在驱动程序返回的数据之上附加的额外数据
+    //
+
+    extra = (SBIELOW_EXTRA_DATA*)((ULONG_PTR)syscall_data + len);
+
+    syscall_data[1] = len;
+
+    //为LdrLoadDll编写ASCII字符串（请参阅core / low / inject.c）    
+
+    ptr = (WCHAR*)((ULONG_PTR)extra + sizeof(SBIELOW_EXTRA_DATA));
+
+    strcpy((char*)ptr, "LdrLoadDll");
+
+    extra->LdrLoadDll_offset = ULONG_DIFF(ptr, extra);
+    ptr += 16 / sizeof(WCHAR);
+
+    //
+    //为LdrGetProcedureAddress写入ASCII字符串
+    //
+
+    strcpy((char*)ptr, "LdrGetProcedureAddress");
+
+    extra->LdrGetProcAddr_offset = ULONG_DIFF(ptr, extra);
+    ptr += 28 / sizeof(WCHAR);
+
+    //
+    //为NtProtectVirtualMemory写入ASCII字符串
+    //
+
+    strcpy((char*)ptr, "NtProtectVirtualMemory");
+
+    extra->NtProtectVirtualMemory_offset = ULONG_DIFF(ptr, extra);
+    ptr += 28 / sizeof(WCHAR);
+
+    //
+    //为NtRaiseHardError写入ASCII字符串
+    //
+
+    strcpy((char*)ptr, "NtRaiseHardError");
+
+    extra->NtRaiseHardError_offset = ULONG_DIFF(ptr, extra);
+    ptr += 20 / sizeof(WCHAR);
+
+    //
+    //为NtDeviceIoControlFile写入ASCII字符串
+    //
+
+    strcpy((char*)ptr, "NtDeviceIoControlFile");
+
+    extra->NtDeviceIoControlFile_offset = ULONG_DIFF(ptr, extra);
+    ptr += 28 / sizeof(WCHAR);
+
+    //
+    //为RtlFindActivationContextSectionString写入ASCII字符串
+    //
+
+    strcpy((char*)ptr, "RtlFindActivationContextSectionString");
+
+    extra->RtlFindActCtx_offset = ULONG_DIFF(ptr, extra);
+    ptr += 44 / sizeof(WCHAR);
+
+    //ntdll在没有路径的情况下加载kernel32，我们将在RtlFindActivationContextSectionString的钩子中执行同样的操作，请参阅entry.asm
+    wcscpy(ptr, L"kernel32.dll");
+
+    len = wcslen(ptr);
+    extra->KernelDll_offset = ULONG_DIFF(ptr, extra);
+    extra->KernelDll_length = len * sizeof(WCHAR);
+    ptr += len + 1;
+
+    //将本机和wow64 SbieDll的路径附加到系统调用缓冲区
+    wcscpy(ptr, sbie_home);
+    wcscat(ptr, _SbieDll);
+
+    len = (ULONG)wcslen(ptr);
+    extra->NativeSbieDll_offset = ULONG_DIFF(ptr, extra);
+    extra->NativeSbieDll_length = len * sizeof(WCHAR);
+    ptr += len + 1;
+
+    wcscpy(ptr, sbie_home);
+    wcscat(ptr, L"\\32");
+    wcscat(ptr, _SbieDll);
+
+    len = (ULONG)wcslen(ptr);
+    extra->Wow64SbieDll_offset = ULONG_DIFF(ptr, extra);
+    extra->Wow64SbieDll_length = len * sizeof(WCHAR);
+    ptr += len + 1;
+
+    //注意：工作区域现在被移到了额外区域之后，因此不再覆盖syscall_data
+    extra->InjectData_offset = ULONG_DIFF(ptr, extra);
+
+    //调整系统调用缓冲区的大小以包括路径字符串
+    *syscall_data = ULONG_DIFF(ptr, syscall_data) + sizeof(INJECT_DATA);
+
+    m_syscall_data = syscall_data;
+    return STATUS_SUCCESS;
 }

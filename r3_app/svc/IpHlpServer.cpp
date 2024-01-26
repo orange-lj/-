@@ -32,6 +32,11 @@ IpHlpServer::IpHlpServer(PipeServer* pipeServer)
     pipeServer->Register(MSGID_IPHLP, this, Handler);
 }
 
+MSG_HEADER* IpHlpServer::Handler(void* _this, MSG_HEADER* msg)
+{
+    return nullptr;
+}
+
 void IpHlpServer::CloseCallback(void* context, void* data)
 {
 

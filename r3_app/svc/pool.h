@@ -22,7 +22,7 @@
 
 #ifndef _MY_POOL_H
 #define _MY_POOL_H
-
+#include<windows.h>
 
 //---------------------------------------------------------------------------
 // Structures

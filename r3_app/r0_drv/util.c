@@ -1,5 +1,8 @@
 #include "util.h"
+#include"mem.h"
 #include"../common/defines.h"
+#include"process.h"
+#include"../common/my_version.h"
 NTSTATUS GetRegString(ULONG RelativeTo, const WCHAR* Path, const WCHAR* ValueName, UNICODE_STRING* pData)
 {
 	NTSTATUS status;
@@ -22,4 +25,100 @@ NTSTATUS GetRegString(ULONG RelativeTo, const WCHAR* Path, const WCHAR* ValueNam
 	
 	}
 	return status;
+}
+
+typedef struct _SYSTEM_CODEINTEGRITY_INFORMATION
+{
+	ULONG Length;
+	ULONG CodeIntegrityOptions;
+} SYSTEM_CODEINTEGRITY_INFORMATION, * PSYSTEM_CODEINTEGRITY_INFORMATION;
+
+BOOLEAN MyIsTestSigning(void)
+{
+	SYSTEM_CODEINTEGRITY_INFORMATION sci = { sizeof(SYSTEM_CODEINTEGRITY_INFORMATION) };
+	if (NT_SUCCESS(ZwQuerySystemInformation(/*SystemCodeIntegrityInformation*/ 103, &sci, sizeof(sci), NULL)))
+	{
+		//BOOLEAN bCodeIntegrityEnabled = !!(sci.CodeIntegrityOptions & /*CODEINTEGRITY_OPTION_ENABLED*/ 0x1);
+		BOOLEAN bTestSigningEnabled = !!(sci.CodeIntegrityOptions & /*CODEINTEGRITY_OPTION_TESTSIGN*/ 0x2);
+
+		//DbgPrint("Test Signing: %d; Code Integrity: %d\r\n", bTestSigningEnabled, bCodeIntegrityEnabled);
+
+		//if (bTestSigningEnabled || !bCodeIntegrityEnabled)
+		if (bTestSigningEnabled)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+
+
+BOOLEAN MyIsCallerMyServiceProcess(void)
+{
+	BOOLEAN ok = FALSE;
+
+	if (MyIsCurrentProcessRunningAsLocalSystem()) {
+
+		void* nbuf;
+		ULONG nlen;
+		WCHAR* nptr;
+
+		const ULONG ProcessId = (ULONG)(ULONG_PTR)PsGetCurrentProcessId();
+		Process_GetProcessName(Driver_Pool, ProcessId, &nbuf, &nlen, &nptr);
+		if (nbuf) {
+
+			UNICODE_STRING* uni = (UNICODE_STRING*)nbuf;
+
+			if ((uni->Length > Driver_HomePathNt_Len * sizeof(WCHAR)) &&
+				(0 == _wcsnicmp(uni->Buffer, Driver_HomePathNt,
+					Driver_HomePathNt_Len))) {
+
+				if (_wcsicmp(nptr, SBIESVC_EXE) == 0) {
+
+					ok = TRUE;
+				}
+			}
+
+			Mem_Free(nbuf, nlen);
+		}
+	}
+
+	return ok;
+}
+
+BOOLEAN MyIsCurrentProcessRunningAsLocalSystem(void)
+{
+	extern const WCHAR* Driver_S_1_5_18;
+	UNICODE_STRING SidString;
+	ULONG SessionId;
+	BOOLEAN s_1_5_18 = FALSE;
+	NTSTATUS status = Process_GetSidStringAndSessionId(
+		NtCurrentProcess(), NULL, &SidString, &SessionId);
+	if (NT_SUCCESS(status)) {
+		if (_wcsicmp(SidString.Buffer, Driver_S_1_5_18) == 0)
+			s_1_5_18 = TRUE;
+		RtlFreeUnicodeString(&SidString);
+	}
+	return s_1_5_18;
+}
+
+BOOLEAN MyIsCallerSigned(void)
+{
+	NTSTATUS status;
+
+	//在测试签名模式下，不验证签名
+	if (MyIsTestSigning())
+		return TRUE;
+
+	//status = KphVerifyCurrentProcess();
+	//
+	////DbgPrint("Image Signature Verification result: 0x%08x\r\n", status);
+	//
+	//if (!NT_SUCCESS(status)) {
+	//
+	//	//Log_Status(MSG_1330, 0, status);
+	//
+	//	return FALSE;
+	//}
+
+	return TRUE;
 }

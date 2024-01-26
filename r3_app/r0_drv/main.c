@@ -22,6 +22,7 @@
 #include"../common/my_version.h"
 #include"../common/ntproto.h"
 const ULONG tzuk = 'xobs';
+const WCHAR* Driver_S_1_5_18 = L"S-1-5-18"; //	System
 
 DRIVER_OBJECT* Driver_Object;
 

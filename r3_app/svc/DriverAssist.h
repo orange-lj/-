@@ -11,10 +11,15 @@ private:
 	DriverAssist();
 	bool InitializePortAndThreads();
 	static ULONG StartDriverAsync(void* arg);
+	static void InitClipboard();
 	//主侦听和消息工作线程
 	static void ThreadStub(void* parm);
+	static DWORD MsgWorkerThreadStub(void* msg);
+	void MsgWorkerThread(void* msg);
 	void Thread();
-
+	//将消息记录到文件
+	void LogMessage();
+	void LogMessage_Single(ULONG code, wchar_t* data, ULONG pid);
 	//向新进程注入低层代码层的函数
 	bool InjectLow_Init();
 private:

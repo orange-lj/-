@@ -115,6 +115,22 @@ NTSTATUS Token_Api_Filter(PROCESS* proc, ULONG64* parms)
 	return STATUS_SUCCESS;
 }
 
+NTSTATUS Token_QuerySidString(void* TokenObject, UNICODE_STRING* SidString)
+{
+	TOKEN_USER* TokenUserData = NULL;
+	NTSTATUS status = SeQueryInformationToken(
+		TokenObject, TokenUser, &TokenUserData);
+	if (NT_SUCCESS(status)) {
+
+		status = RtlConvertSidToUnicodeString(
+			SidString, TokenUserData->User.Sid, TRUE);
+
+		ExFreePool(TokenUserData);
+	}
+
+	return status;
+}
+
 BOOLEAN Token_Init_SepFilterToken(void)
 {
 	UNICODE_STRING uni;

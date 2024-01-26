@@ -26,3 +26,8 @@ void SbieIniServer::LockConf(WCHAR* IniPath)
 		return;
 	}
 }
+
+MSG_HEADER* SbieIniServer::Handler(void* _this, MSG_HEADER* msg)
+{
+	return nullptr;
+}

@@ -156,12 +156,14 @@
   <ItemGroup>
     <ClCompile Include="..\common\list.c" />
     <ClCompile Include="callsvc.c" />
+    <ClCompile Include="dllhook.c" />
     <ClCompile Include="dllmain.c" />
     <ClCompile Include="dllmem.c" />
     <ClCompile Include="file.c" />
     <ClCompile Include="lowlevel_inject.c" />
     <ClCompile Include="my_ntdll.c" />
     <ClCompile Include="pool.c" />
+    <ClCompile Include="proc.c" />
     <ClCompile Include="rpcrt.c" />
     <ClCompile Include="sbieapi.c" />
     <ClCompile Include="support.c" />
@@ -171,6 +173,7 @@
     <ClInclude Include="..\common\list.h" />
     <ClInclude Include="..\common\win32_ntddk.h" />
     <ClInclude Include="dll.h" />
+    <ClInclude Include="ntproto.h" />
     <ClInclude Include="pool.h" />
     <ClInclude Include="sbieapi.h" />
     <ClInclude Include="sbiedll.h" />

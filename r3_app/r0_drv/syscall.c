@@ -483,7 +483,70 @@ NTSTATUS Syscall_OpenHandle(PROCESS* proc, SYSCALL_ENTRY* syscall_entry, ULONG_P
 
 NTSTATUS Syscall_Api_Query(PROCESS* proc, ULONG64* parms)
 {
+    ULONG buf_len;
+    ULONG* user_buf;
+    ULONG* ptr;
+    SYSCALL_ENTRY* entry;
+
+#ifdef HOOK_WIN32K
+    if (parms[2] == 1) // 1 - win32k
+    { 
+        //return Syscall_Api_Query32(proc, parms);
+    }
+    else if (parms[2] != 0)// 0 - ntoskrnl
+    { 
+        //return STATUS_INVALID_PARAMETER;
+    }
+#endif
+    BOOLEAN add_names = parms[3] != 0;
+    //调用者必须是我们的服务进程
+    if (proc || (PsGetCurrentProcessId() != Api_ServiceProcessId))
+        return STATUS_ACCESS_DENIED;
+    //为syscall表分配用户模式空间
+    buf_len = sizeof(ULONG)         // size of buffer
+        + sizeof(ULONG)         // offset to extra data (for SbieSvc)
+        + (NATIVE_FUNCTION_SIZE * NATIVE_FUNCTION_COUNT) // saved code from ntdll
+        + List_Count(&Syscall_List) * ((sizeof(ULONG) * 2) + (add_names ? 64 : 0))
+        + sizeof(ULONG) * 2     // 最终终止符条目
+        ;
+    user_buf = (ULONG*)parms[1];
+    ProbeForWrite(user_buf, buf_len, sizeof(ULONG));
+    //用系统调用数据填充缓冲区。
+    //首先，我们存储缓冲区的大小，
+    //然后为SbieSvc使用的ULONG和四个ZwXxx存根函数的代码留出空间
+    ptr = user_buf;
+    *ptr = buf_len;
+    ++ptr;
+
+    *ptr = 0;           //偏移到额外偏移的占位符
+    ++ptr;
+    memcpy(ptr, Syscall_NtdllSavedCode, (NATIVE_FUNCTION_SIZE * NATIVE_FUNCTION_COUNT));
+    ptr += (NATIVE_FUNCTION_SIZE * NATIVE_FUNCTION_COUNT) / sizeof(ULONG);
+    //将服务索引号和（仅在32位Windows上）每个系统调用的参数计数存储到一个ULONG中。
+    //将ntdll中的相应偏移量存储到另一个ULONG中
+    entry = List_Head(&Syscall_List);
+    while (entry) 
+    {
+        ULONG syscall_index = (ULONG)entry->syscall_index;
+        *ptr = syscall_index;
+        ++ptr;
+        *ptr = entry->ntdll_offset;
+        ++ptr;
+        if (add_names) 
+        {
+            //memcpy(ptr, entry->name, entry->name_len);
+            //((char*)ptr)[entry->name_len] = 0;
+            //ptr += 16; // 16 * sizeog(ULONG) = 64
+        }
+        entry = List_Next(entry);
+    }
+    //存储最后一个零终止符条目并成功返回
+    *ptr = 0;
+    ++ptr;
+    *ptr = 0;
+
     return STATUS_SUCCESS;
+
 }
 
 NTSTATUS Syscall_Api_Invoke(PROCESS* proc, ULONG64* parms)

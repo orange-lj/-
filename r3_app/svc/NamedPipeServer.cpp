@@ -18,3 +18,12 @@ NamedPipeServer::NamedPipeServer(PipeServer* pipeServer)
 		CloseCallback, NULL);
 	pipeServer->Register(MSGID_NAMED_PIPE, this, Handler);
 }
+
+MSG_HEADER* NamedPipeServer::Handler(void* _this, MSG_HEADER* msg)
+{
+	return nullptr;
+}
+
+void NamedPipeServer::CloseCallback(void* context, void* data)
+{
+}

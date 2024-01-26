@@ -51,6 +51,12 @@
     <ClCompile Include="lowlevel_inject.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="proc.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="dllhook.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dll.h">
@@ -73,6 +79,9 @@
     </ClInclude>
     <ClInclude Include="..\common\defines.h">
       <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="ntproto.h">
+      <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

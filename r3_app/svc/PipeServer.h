@@ -13,6 +13,10 @@ class PipeServer
 public:
 	//返回全局PipeServer的实例
 	static PipeServer* GetPipeServer();
+
+	//完成所有注册后启动管道服务器
+	bool Start();
+
 	//子服务器的处理程序功能原型
 	typedef MSG_HEADER* (*Handler)(void* context, MSG_HEADER* msg);
 
@@ -25,6 +29,10 @@ protected:
 	PipeServer();
 	//私有初始化程序
 	bool Init();
+	//线程函数的静态包装器
+	static void ThreadStub(void* parm);
+	//用于侦听hServerPort的线程函数
+	void Thread(void);
 protected:
 	LIST m_targets;
 	HASH_MAP m_client_map;

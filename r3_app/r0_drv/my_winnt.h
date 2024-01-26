@@ -20,6 +20,15 @@ NTOS_NTSTATUS   ObOpenObjectByName(
     OUT PHANDLE             Handle);
 
 
+NTOS_NTSTATUS   ZwQueryInformationProcess(
+    IN HANDLE           ProcessHandle,
+    IN PROCESSINFOCLASS ProcessInformationClass,
+    OUT PVOID           ProcessInformation,
+    IN ULONG            ProcessInformationLength,
+    OUT PULONG          ReturnLength OPTIONAL);
+
+
+
 typedef struct _OBJECT_TYPE_VISTA_SP1 {
     //LIST_ENTRY TypeList;
     UNICODE_STRING Name;            // Copy from object header for convenience
@@ -139,5 +148,16 @@ NTOS_NTSTATUS   ZwYieldExecution(void);
 NTOS_NTSTATUS   ZwUnloadKey(
     IN HANDLE               KeyHandle);
 
+NTOS_API(ULONG) PsGetProcessSessionId(PEPROCESS EProcess);
+
 
 typedef void* PINITIAL_TEB;
+
+
+#define PROCESS_QUERY_INFORMATION (0x0400)
+
+NTOS_NTSTATUS   ZwQuerySystemInformation(
+    IN  SYSTEM_INFORMATION_CLASS    SystemInformationClass,
+    OUT PVOID                       SystemInformation,
+    IN  ULONG                       SystemInformationLength,
+    OUT PULONG                      ReturnLength OPTIONAL);

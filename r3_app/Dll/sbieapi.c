@@ -1,4 +1,5 @@
 #include "sbieapi.h"
+#include"ntproto.h"
 #include"../r0_drv/api_defs.h"
 
 #include"../common/defines.h"
@@ -87,7 +88,23 @@ long SbieApi_Ioctl(ULONG64* parms)
     }
     else 
     {
-    
+        //请注意，所有的请求都是同步的，这意味着
+        //NtDeviceIoControlFile将等待，直到SbieDrv完成
+        //在发送下一个请求之前处理一个请求
+        extern P_NtDeviceIoControlFile __sys_NtDeviceIoControlFile;
+        if (__sys_NtDeviceIoControlFile) 
+        {
+            //一旦NtDeviceIoControlFile被钩住，绕过它      
+            status = __sys_NtDeviceIoControlFile(
+                SbieApi_DeviceHandle, NULL, NULL, NULL, &MyIoStatusBlock,
+                API_SBIEDRV_CTLCODE, parms, sizeof(ULONG64) * 8, NULL, 0);
+        }
+        else 
+        {
+            status = NtDeviceIoControlFile(
+                SbieApi_DeviceHandle, NULL, NULL, NULL, &MyIoStatusBlock,
+                API_SBIEDRV_CTLCODE, parms, sizeof(ULONG64) * 8, NULL, 0);
+        }
     }
     return status;
 }
@@ -323,6 +340,53 @@ LONG SbieApi_GetVersionEx(
         if (version_string) wcscpy(version_string, L"unknown");
         if (abi_version) *abi_version = 0;
     }
+
+    return status;
+}
+
+
+LONG SbieApi_Call(ULONG api_code, LONG arg_num, ...) 
+{
+    va_list valist;
+    NTSTATUS status;
+    __declspec(align(8)) ULONG64 parms[API_NUM_ARGS];
+
+    memzero(parms, sizeof(parms));
+    parms[0] = api_code;
+
+    if (arg_num >= (API_NUM_ARGS - 1))
+        return STATUS_INVALID_PARAMETER;
+
+    va_start(valist, arg_num);
+    for (LONG i = 1; i <= arg_num; i++)
+        parms[i] = (ULONG64)va_arg(valist, ULONG_PTR);
+    va_end(valist);
+
+    status = SbieApi_Ioctl(parms);
+
+    return status;
+}
+
+ULONG SbieApi_GetMessage(ULONG* MessageNum, ULONG SessionId, ULONG* MessageId, ULONG* Pid, wchar_t* Buffer, ULONG Length)
+{
+    NTSTATUS status;
+    __declspec(align(8)) UNICODE_STRING64 msgtext;
+    __declspec(align(8)) ULONG64 parms[API_NUM_ARGS];
+    API_GET_MESSAGE_ARGS* args = (API_GET_MESSAGE_ARGS*)parms;
+
+    msgtext.MaximumLength = (USHORT)Length;
+    msgtext.Buffer = (ULONG_PTR)Buffer;
+    msgtext.Length = 0;
+
+    memzero(parms, sizeof(parms));
+    args->func_code = API_GET_MESSAGE;
+    args->msg_num.val = MessageNum;
+    args->session_id.val = SessionId;
+    args->msgid.val = MessageId;
+    args->msgtext.val = &msgtext;
+    args->process_id.val = Pid;
+
+    status = SbieApi_Ioctl(parms);
 
     return status;
 }

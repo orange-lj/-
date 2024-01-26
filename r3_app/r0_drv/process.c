@@ -4,6 +4,7 @@
 #include"api_defs.h"
 #include"syscall.h"
 #include"../common/map.h"
+#include"token.h"
 
 HASH_MAP Process_Map;
 HASH_MAP Process_MapDfp;
@@ -87,6 +88,127 @@ BOOLEAN Process_Low_Init(void)
 	Api_SetFunction(API_INJECT_COMPLETE, Process_Low_Api_InjectComplete);
 
 	return TRUE;
+}
+
+NTSTATUS Process_GetSidStringAndSessionId(HANDLE ProcessHandle, HANDLE ProcessId, UNICODE_STRING* SidString, ULONG* SessionId)
+{
+	NTSTATUS status;
+	PEPROCESS ProcessObject = NULL;
+	PACCESS_TOKEN TokenObject;
+
+	if (ProcessHandle == NtCurrentProcess()) {
+
+		ProcessObject = PsGetCurrentProcess();
+		ObReferenceObject(ProcessObject);
+		status = STATUS_SUCCESS;
+
+	}
+	else if (ProcessHandle) {
+
+		const KPROCESSOR_MODE AccessMode =
+			((ProcessHandle == NtCurrentProcess()) ? KernelMode : UserMode);
+
+		status = ObReferenceObjectByHandle(ProcessHandle, 0, *PsProcessType,
+			AccessMode, &ProcessObject, NULL);
+
+	}
+	else if (ProcessId) {
+
+		status = PsLookupProcessByProcessId(ProcessId, &ProcessObject);
+
+	}
+	else {
+
+		status = STATUS_INVALID_PARAMETER;
+	}
+
+	if (NT_SUCCESS(status)) {
+
+		*SessionId = PsGetProcessSessionId(ProcessObject);
+
+		TokenObject = PsReferencePrimaryToken(ProcessObject);
+		status = Token_QuerySidString(TokenObject, SidString);
+		PsDereferencePrimaryToken(TokenObject);
+
+		ObDereferenceObject(ProcessObject);
+	}
+
+	if (!NT_SUCCESS(status)) {
+
+		SidString->Buffer = NULL;
+		*SessionId = -1;
+	}
+
+	return status;
+}
+
+void Process_GetProcessName(POOL* pool, ULONG_PTR idProcess, void** out_buf, ULONG* out_len, WCHAR** out_ptr)
+{
+	NTSTATUS status;
+	OBJECT_ATTRIBUTES objattrs;
+	CLIENT_ID cid;
+	HANDLE handle;
+	ULONG len;
+
+	*out_buf = NULL;
+	*out_len = 0;
+	*out_ptr = NULL;
+
+	if (!idProcess)
+		return;
+
+	InitializeObjectAttributes(&objattrs,
+		NULL, OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, NULL, NULL);
+	cid.UniqueProcess = (HANDLE)idProcess;
+	cid.UniqueThread = 0;
+
+	status = ZwOpenProcess(
+		&handle, PROCESS_QUERY_INFORMATION, &objattrs, &cid);
+
+	if (!NT_SUCCESS(status))
+		return;
+
+	status = ZwQueryInformationProcess(
+		handle, ProcessImageFileName, NULL, 0, &len);
+
+	if (status == STATUS_INFO_LENGTH_MISMATCH) {
+
+		ULONG uni_len = len + 8 + 8;
+		UNICODE_STRING* uni = Mem_Alloc(pool, uni_len);
+		if (uni) {
+
+			uni->Buffer = NULL;
+
+			status = ZwQueryInformationProcess(
+				handle, ProcessImageFileName, uni, len + 8, &len);
+
+			if (NT_SUCCESS(status) && uni->Buffer) {
+
+				WCHAR* ptr;
+				uni->Buffer[uni->Length / sizeof(WCHAR)] = L'\0';
+				if (!uni->Buffer[0]) {
+					uni->Buffer[0] = L'?';
+					uni->Buffer[1] = L'\0';
+				}
+				ptr = wcsrchr(uni->Buffer, L'\\');
+				if (ptr) {
+					++ptr;
+					if (!*ptr)
+						ptr = uni->Buffer;
+				}
+				else
+					ptr = uni->Buffer;
+				*out_buf = uni;
+				*out_len = uni_len;
+				*out_ptr = ptr;
+
+			}
+			else
+				Mem_Free(uni, uni_len);
+		}
+	}
+
+	ZwClose(handle);
 }
 
 NTSTATUS Process_Low_Api_InjectComplete(PROCESS* proc, ULONG64* parms)

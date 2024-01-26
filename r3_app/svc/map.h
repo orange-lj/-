@@ -17,7 +17,7 @@
 
 #ifndef MAP_H
 #define MAP_H
-
+#include<windows.h>
 #ifdef __cplusplus
 extern "C" {
 #endif

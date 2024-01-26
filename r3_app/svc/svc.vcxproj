@@ -141,8 +141,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\common\list.h" />
     <ClInclude Include="ComServer.h" />
     <ClInclude Include="DriverAssist.h" />
+    <ClInclude Include="EpMapperServer.h" />
     <ClInclude Include="FileServer.h" />
     <ClInclude Include="IpHlpServer.h" />
     <ClInclude Include="map.h" />
@@ -163,8 +165,10 @@
     <ClInclude Include="TerminalServer.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\common\list.c" />
     <ClCompile Include="ComServer.cpp" />
     <ClCompile Include="DriverAssist.cpp" />
+    <ClCompile Include="EpMapperServer.cpp" />
     <ClCompile Include="FileServer.cpp" />
     <ClCompile Include="IpHlpServer.cpp" />
     <ClCompile Include="main.cpp" />

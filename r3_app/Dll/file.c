@@ -1,4 +1,5 @@
 #include"dll.h"
+#include"ntproto.h"
 #define MOUNTMGRCONTROLTYPE  ((ULONG) 'm')
 #define IOCTL_MOUNTMGR_QUERY_POINTS \
     CTL_CODE(MOUNTMGRCONTROLTYPE, 2, METHOD_BUFFERED, FILE_ANY_ACCESS)
@@ -87,7 +88,7 @@ static LIST* File_PermLinks = NULL;
 static LIST* File_TempLinks = NULL;
 static LIST* File_GuidLinks = NULL;
 static BOOLEAN File_DriveAddSN = FALSE;
-
+P_NtDeviceIoControlFile      __sys_NtDeviceIoControlFile = NULL;
 //º¯Êý
 static BOOLEAN File_InitDrives(ULONG DriveMask);
 static void File_InitLinks(THREAD_DATA* TlsData);

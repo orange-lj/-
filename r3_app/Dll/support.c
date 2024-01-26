@@ -2,6 +2,9 @@
 #include"../svc/sbieiniwire.h"
 #include"../common/my_version.h"
 
+const WCHAR* Support_SbieSvcKeyPath =
+L"\\registry\\machine\\system\\currentcontrolset\\services\\" SBIESVC;
+
 BOOLEAN SbieDll_StartSbieSvc(BOOLEAN retry) 
 {
     typedef void* (*P_OpenSCManager)(void* p1, void* p2, ULONG acc);
@@ -74,4 +77,37 @@ BOOLEAN SbieDll_StartSbieSvc(BOOLEAN retry)
             }
         }
     }
+}
+
+
+BOOLEAN SbieDll_GetServiceRegistryValue(
+    const WCHAR* name, void* kvpi, ULONG sizeof_kvpi)
+{
+    NTSTATUS status;
+    OBJECT_ATTRIBUTES objattrs;
+    UNICODE_STRING objname;
+    HANDLE handle;
+    ULONG len;
+
+    InitializeObjectAttributes(
+        &objattrs, &objname, OBJ_CASE_INSENSITIVE, NULL, NULL);
+
+    RtlInitUnicodeString(&objname, Support_SbieSvcKeyPath);
+
+    status = NtOpenKey(&handle, KEY_READ, &objattrs);
+    if (!NT_SUCCESS(status))
+        return FALSE;
+
+    RtlInitUnicodeString(&objname, name);
+
+    status = NtQueryValueKey(
+        handle, &objname, KeyValuePartialInformation,
+        kvpi, sizeof_kvpi, &len);
+
+    NtClose(handle);
+
+    if (!NT_SUCCESS(status))
+        return FALSE;
+
+    return TRUE;
 }

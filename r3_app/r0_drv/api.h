@@ -14,3 +14,4 @@ static BOOLEAN Api_FastIo_DEVICE_CONTROL(
     ULONG IoControlCode, IO_STATUS_BLOCK* IoStatus,
     DEVICE_OBJECT* DeviceObject);
 
+extern volatile HANDLE Api_ServiceProcessId;

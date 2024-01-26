@@ -9,3 +9,8 @@ ComServer::ComServer(PipeServer* pipeServer)
 
     pipeServer->Register(MSGID_COM, this, Handler);
 }
+
+MSG_HEADER* ComServer::Handler(void* _this, MSG_HEADER* msg)
+{
+    return nullptr;
+}

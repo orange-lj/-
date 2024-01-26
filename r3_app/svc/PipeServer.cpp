@@ -1,7 +1,7 @@
 #include "PipeServer.h"
 #include"misc.h"
 #include"../common/defines.h"
-
+#include"../Dll/sbiedll.h"
 typedef struct tagTARGET
 {
     LIST_ELEM list_elem;
@@ -27,6 +27,53 @@ PipeServer* PipeServer::GetPipeServer()
         }
     }
     return m_instance;
+}
+
+bool PipeServer::Start()
+{
+    NTSTATUS status;
+    OBJECT_ATTRIBUTES objattrs;
+    UNICODE_STRING PortName;
+    ULONG i;
+    ULONG idThread;
+    //服务器端口应该具有NULL DACL，以便任何进程都可以连接
+    ULONG sd_space[16];
+    memzero(&sd_space, sizeof(sd_space));
+    PSECURITY_DESCRIPTOR sd = (PSECURITY_DESCRIPTOR)&sd_space;
+    InitializeSecurityDescriptor(sd, SECURITY_DESCRIPTOR_REVISION);
+    SetSecurityDescriptorDacl(sd, TRUE, NULL, FALSE);
+    //创建服务器端口
+    RtlInitUnicodeString(&PortName, SbieDll_PortName());
+
+    InitializeObjectAttributes(
+        &objattrs, &PortName, OBJ_CASE_INSENSITIVE, NULL, sd);
+
+    status = NtCreatePort(
+        (HANDLE*)&m_hServerPort, &objattrs, 0, MAX_PORTMSG_LENGTH, NULL);
+
+    if (!NT_SUCCESS(status)) 
+    {
+        //LogEvent(MSG_9234, 0x9252, status);
+        return false;
+    }
+    //确保其他CPU上的线程将看到该端口
+    InterlockedExchangePointer(&m_hServerPort, m_hServerPort);
+
+    //
+    //创建服务器线程
+    //
+
+    for (i = 0; i < NUMBER_OF_THREADS; ++i) {
+
+        m_Threads[i] = CreateThread(
+            NULL, 0, (LPTHREAD_START_ROUTINE)ThreadStub, this, 0, &idThread);
+        if (!m_Threads[i]) {
+            //LogEvent(MSG_9234, 0x9253, GetLastError());
+            return false;
+        }
+    }
+
+    return true;
 }
 
 void PipeServer::Register(ULONG serverId, void* context, Handler handler)
@@ -66,4 +113,23 @@ bool PipeServer::Init()
     map_resize(&m_client_map, 128);
 
     return false;
+}
+
+void PipeServer::ThreadStub(void* parm)
+{
+    ((PipeServer*)parm)->Thread();
+}
+
+void PipeServer::Thread(void)
+{
+    NTSTATUS status;
+    UCHAR space[MAX_PORTMSG_LENGTH], spaceReply[MAX_PORTMSG_LENGTH];
+    PORT_MESSAGE* msg = (PORT_MESSAGE*)space;
+    HANDLE hReplyPort;
+    PORT_MESSAGE* ReplyMsg;
+
+    //最初我们没有回复发送。在每次发送回复后，我们也将恢复到无回复状态
+    hReplyPort = m_hServerPort;
+    ReplyMsg = NULL;
+
 }

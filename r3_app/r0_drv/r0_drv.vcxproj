@@ -92,7 +92,7 @@
       <AdditionalOptions>/Wv:18 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>fltmgr.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>ntoskrnl.lib;hal.lib;wmilib.lib;fltmgr.lib;Ksecdd.lib;Fwpkclnt.lib;ntstrsafe.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -127,6 +127,7 @@
     <ClCompile Include="thread.c" />
     <ClCompile Include="token.c" />
     <ClCompile Include="util.c" />
+    <ClCompile Include="verify.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\common\defines.h" />

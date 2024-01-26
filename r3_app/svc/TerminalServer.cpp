@@ -26,3 +26,8 @@ TerminalServer::TerminalServer(PipeServer* pipeServer)
     }
     pipeServer->Register(MSGID_TERMINAL, this, Handler);
 }
+
+MSG_HEADER* TerminalServer::Handler(void* _this, MSG_HEADER* msg)
+{
+    return nullptr;
+}

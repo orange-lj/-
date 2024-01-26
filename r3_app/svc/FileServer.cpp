@@ -63,7 +63,7 @@ FileServer::FileServer(PipeServer* pipeServer)
         L"\\drive\\%c%s\\winsxs\\", m_windows[0], &m_windows[2]);
 
     //
-    // prepare Security Descriptor for creating files in WinSxS
+    //准备用于在WinSxS中创建文件的安全描述符
     //
 
     m_PublicSd = MyAlloc(64);
@@ -75,10 +75,15 @@ FileServer::FileServer(PipeServer* pipeServer)
     RtlSetDaclSecurityDescriptor(m_PublicSd, TRUE, NULL, FALSE);
 
     //
-    // subscribe as a target of the pipe server
+    //作为管道服务器的目标进行订阅
     //
 
     pipeServer->Register(MSGID_FILE, this, Handler);
+}
+
+MSG_HEADER* FileServer::Handler(void* _this, MSG_HEADER* msg)
+{
+    return nullptr;
 }
 
 void* FileServer::MyAlloc(ULONG len)
