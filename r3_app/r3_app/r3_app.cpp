@@ -34,8 +34,11 @@ Cr3appApp::Cr3appApp()
 // 唯一的 Cr3appApp 对象
 
 Cr3appApp theApp;
-
-
+bool Cr3appApp::m_Windows2000 = false;
+bool Cr3appApp::m_WindowsVista = false;
+ULONG Cr3appApp::m_session_id = 0;
+ATOM Cr3appApp::m_atom = NULL;
+CString Cr3appApp::m_appTitle;
 // Cr3appApp 初始化
 
 BOOL Cr3appApp::InitInstance()
@@ -70,25 +73,115 @@ BOOL Cr3appApp::InitInstance()
 	// TODO: 应适当修改该字符串，
 	// 例如修改为公司或组织名
 	SetRegistryKey(_T("应用程序向导生成的本地应用程序"));
+	static const WCHAR* WindowClassName = SANDBOXIE_CONTROL L"WndClass";
+	BOOL ForceVisible = FALSE;
+	BOOL ForceSync = FALSE;
+	BOOL PostSetup = FALSE;
+	WCHAR* CommandLine = GetCommandLine();
+	if (CommandLine)
+	{
+		if (wcsstr(CommandLine, L"/open"))
+			ForceVisible = TRUE;
+		if (wcsstr(CommandLine, L"/sync"))
+			ForceSync = TRUE;
+		if (wcsstr(CommandLine, L"/postsetup"))
+			PostSetup = TRUE;
+		if (wcsstr(CommandLine, L"/uninstall"))
+		{
+			//CShellDialog::Sync(TRUE);
+			return TRUE;
+		}
+	}
 
-	Cr3appDlg dlg;
-	m_pMainWnd = &dlg;
-	INT_PTR nResponse = dlg.DoModal();
-	if (nResponse == IDOK)
+	//如果应用程序互斥已存在，则提前中止
+	WCHAR* InstanceMutexName = SANDBOXIE L"_SingleInstanceMutex_Control";
+	HANDLE hInstanceMutex =
+		OpenMutex(MUTEX_ALL_ACCESS, FALSE, InstanceMutexName);
+	if (hInstanceMutex)
 	{
-		// TODO: 在此放置处理何时用
-		//  “确定”来关闭对话框的代码
+		//if (ForceVisible) 
+		//{
+		//	HWND hwnd = FindWindow(WindowClassName, NULL);
+		//	if (hwnd) {
+		//		ShowWindow(hwnd, SW_SHOWNORMAL);
+		//		SetForegroundWindow(hwnd);
+		//	}
+		//}
+		//return FALSE;
 	}
-	else if (nResponse == IDCANCEL)
+	hInstanceMutex = CreateMutex(NULL, FALSE, InstanceMutexName);
+	if (!hInstanceMutex)
+		return FALSE;
+
+
+	WCHAR* home_path = (WCHAR*)HeapAlloc(
+		GetProcessHeap(), HEAP_GENERATE_EXCEPTIONS, 1024 * sizeof(WCHAR));
+	SbieApi_GetHomePath(NULL, 0, home_path, 1020);
+	SetCurrentDirectory(home_path);
+	HeapFree(GetProcessHeap(), HEAP_GENERATE_EXCEPTIONS, home_path);
+
+
+	//检查Windows XP API是否可用
+	OSVERSIONINFO osvi;
+	memzero(&osvi, sizeof(OSVERSIONINFO));
+	osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+	GetVersionEx((OSVERSIONINFO*)&osvi);
+	if (osvi.dwMajorVersion == 5 && osvi.dwMinorVersion == 0)
+		m_Windows2000 = true;
+	if (osvi.dwMajorVersion >= 6)
+		m_WindowsVista = true;
+
+	//初始化misc
+	CoInitialize(NULL);
+
+	m_appTitle = "huyue";
+
+	if (!ProcessIdToSessionId(GetCurrentProcessId(), &m_session_id))
+		m_session_id = 0;
+	SbieDll_GetDrivePath(-1);
+
+	//注册主窗口类
+	WNDCLASSEX wc;
+	wc.cbSize = sizeof(WNDCLASSEX);
+	wc.style = CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS | CS_GLOBALCLASS;
+	wc.lpfnWndProc = ::DefWindowProc;
+	wc.cbClsExtra = 0;
+	wc.cbWndExtra = 0;
+	wc.hInstance = AfxGetInstanceHandle();
+	wc.hIcon = NULL;
+	wc.hCursor = ::LoadCursor(NULL, IDC_ARROW);
+	wc.hbrBackground = (HBRUSH)(COLOR_3DFACE + 1);
+	wc.lpszMenuName = NULL;
+	wc.lpszClassName = WindowClassName;
+	wc.hIconSm = NULL;
+
+	m_atom = RegisterClassEx(&wc);
+	if (!m_atom) 
 	{
-		// TODO: 在此放置处理何时用
-		//  “取消”来关闭对话框的代码
+		int a = GetLastError();
+		return FALSE;
 	}
-	else if (nResponse == -1)
-	{
-		TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
-		TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
-	}
+	//等待Sandboxie完成初始化
+	CInitWait initwait(this);
+
+	//Cr3appDlg dlg;
+	//m_pMainWnd = &dlg;
+	//INT_PTR nResponse = dlg.DoModal();
+	//if (nResponse == IDOK)
+	//{
+	//	// TODO: 在此放置处理何时用
+	//	//  “确定”来关闭对话框的代码
+	//}
+	//else if (nResponse == IDCANCEL)
+	//{
+	//	// TODO: 在此放置处理何时用
+	//	//  “取消”来关闭对话框的代码
+	//}
+	//else if (nResponse == -1)
+	//{
+	//	TRACE(traceAppMsg, 0, "警告: 对话框创建失败，应用程序将意外终止。\n");
+	//	TRACE(traceAppMsg, 0, "警告: 如果您在对话框上使用 MFC 控件，则无法 #define _AFX_NO_MFC_CONTROLS_IN_DIALOGS。\n");
+	//}
 
 	// 删除上面创建的 shell 管理器。
 	if (pShellManager != nullptr)

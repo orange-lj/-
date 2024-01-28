@@ -1,6 +1,6 @@
 #pragma once
 #include"r3_appDlg.h"
-class CInitWait :public Cr3appDlg
+class CInitWait :public CWnd
 {
 	DECLARE_MESSAGE_MAP()
 	CString m_app_ver;
@@ -10,8 +10,9 @@ class CInitWait :public Cr3appDlg
 	ULONG   m_drv_abi;
 
 	void GetVersions();
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 public:
-	CInitWait(Cr3appDlg* myApp);
+	CInitWait(CWinApp* myApp);
 	~CInitWait();
 };
 

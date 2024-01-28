@@ -80,6 +80,7 @@ void WINAPI ServiceMain(DWORD argc, WCHAR* argv[])
 
 int WinMain(HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR lpCmdLine,int nCmdShow) 
 {
+    Sleep(7000);
 	SERVICE_TABLE_ENTRY myServiceTable[] =
 	{
 		{ServiceName,ServiceMain},

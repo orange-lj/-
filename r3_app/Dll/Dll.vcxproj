@@ -175,8 +175,15 @@
     <ClInclude Include="dll.h" />
     <ClInclude Include="ntproto.h" />
     <ClInclude Include="pool.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="sbieapi.h" />
     <ClInclude Include="sbiedll.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Dll.rc" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="LowLevel.dll" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

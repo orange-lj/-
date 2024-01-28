@@ -37,3 +37,13 @@
 // %0
 //
 #define MSG_1399                         0x41020577L
+
+
+//
+// MessageId: MSG_3301
+//
+// MessageText:
+//
+// Sandboxie Control
+//
+#define MSG_3301                         0x00000CE5L

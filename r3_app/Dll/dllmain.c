@@ -13,7 +13,7 @@ const WCHAR* Dll_BoxName = NULL;
 HMODULE Dll_Ntdll = NULL;
 HMODULE Dll_Kernel32 = NULL;
 HMODULE Dll_KernelBase = NULL;
-
+const WCHAR* Dll_HomeDosPath = NULL;
 BOOLEAN Dll_AppContainerToken = FALSE;
 
 const WCHAR* DllName_advapi32 = L"advapi32.dll";

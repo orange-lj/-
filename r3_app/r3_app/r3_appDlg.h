@@ -11,9 +11,7 @@ class Cr3appDlg : public CDialogEx
 // 构造
 public:
 	Cr3appDlg(CWnd* pParent = nullptr);	// 标准构造函数
-	static bool m_Windows2000;
-	static bool m_WindowsVista;
-	static ULONG m_session_id;
+	
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_R3_APP_DIALOG };
@@ -33,4 +31,6 @@ protected:
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
 	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 };

@@ -188,6 +188,7 @@
     <ClInclude Include="..\common\my_version.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="InitWait.h" />
+    <ClInclude Include="MyMsg.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="r3_app.h" />
     <ClInclude Include="r3_appDlg.h" />
@@ -196,6 +197,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="InitWait.cpp" />
+    <ClCompile Include="MyMsg.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

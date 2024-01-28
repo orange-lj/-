@@ -3,6 +3,7 @@
 #include"../low/lowdata.h"
 #include"../common/my_version.h"
 #include"../r0_drv/api_defs.h"
+#include"resource.h"
 //变量
 void* m_sbielow_ptr = NULL;
 ULONG m_sbielow_len = 0;
@@ -34,9 +35,13 @@ ULONG SbieDll_InjectLow_LoadLow(BOOLEAN arch_64bit, void** sbielow_ptr, ULONG* s
 
     ULONG errlvl = 0x11;
 
-    HRSRC hrsrc = FindResource(Dll_Instance, arch_64bit ? L"LOWLEVEL64" : L"LOWLEVEL32", RT_RCDATA);
-    if (!hrsrc)
+    HRSRC hrsrc = FindResource(Dll_Instance, MAKEINTRESOURCE(IDR_TESTRES1), L"TESTRES");
+    if (!hrsrc) 
+    {
+        int a = GetLastError();
         return errlvl;
+    }
+        
 
     ULONG binsize = SizeofResource(Dll_Instance, hrsrc);
     if (!binsize)
@@ -101,8 +106,8 @@ ULONG SbieDll_InjectLow_LoadLow(BOOLEAN arch_64bit, void** sbielow_ptr, ULONG* s
 ULONG SbieDll_InjectLow_InitHelper() 
 {
 	ULONG errlvl = SbieDll_InjectLow_LoadLow(TRUE, &m_sbielow_ptr, &m_sbielow_len, &m_sbielow_start_offset, &m_sbielow_data_offset, NULL);
-    if (!errlvl)
-        errlvl = SbieDll_InjectLow_LoadLow(FALSE, &m_sbielow32_ptr, &m_sbielow32_len, NULL, NULL, &m_sbielow32_detour_offset);
+    /*if (!errlvl)
+        errlvl = SbieDll_InjectLow_LoadLow(FALSE, &m_sbielow32_ptr, &m_sbielow32_len, NULL, NULL, &m_sbielow32_detour_offset);*/
     if (errlvl)
         return errlvl;
     //记录有关ntdll和虚拟内存系统的信息

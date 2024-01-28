@@ -49,8 +49,10 @@ MSG_HEADER* SbieDll_CallServer(MSG_HEADER* req)
             req->msgid == MSGID_PROCESS_CHECK_INIT_COMPLETE);
         status = SbieDll_ConnectPort();
         if (!NT_SUCCESS(status)) {
-            if (!Dll_AppContainerToken && !Silent) // todo: fix me make service available for appcontainer processes
+            if (!Dll_AppContainerToken && !Silent) //todo:修复让服务可用于appcontainer进程的问题
+            {
                 //SbieApi_Log(2203, L"connect %08X (msg_id 0x%04X)", status, req->msgid);
+            } 
             return NULL;
         }
     }

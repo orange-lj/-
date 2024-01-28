@@ -24,6 +24,7 @@ extern const WCHAR* Dll_BoxName;
 extern BOOLEAN Dll_AppContainerToken;
 extern const WCHAR* DllName_advapi32;
 extern ULONG Dll_Windows;
+extern const WCHAR* Dll_HomeDosPath;
 
 extern __declspec(dllexport) int __CRTDECL Sbie_snwprintf(wchar_t* _Buffer, size_t Count, const wchar_t* const _Format, ...);
 extern __declspec(dllexport) int __CRTDECL Sbie_snprintf(char* _Buffer, size_t Count, const char* const _Format, ...);
