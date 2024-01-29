@@ -2,6 +2,10 @@
 #include"../common/win32_ntddk.h"
 #include<windows.h>
 
+//extern     const  ULONG                 tzuk;
+//
+//#define POOL_TAG tzuk
+
 extern HMODULE _Ntdll;
 extern HMODULE _Kernel32;
 extern SYSTEM_INFO _SystemInfo;

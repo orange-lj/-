@@ -25,9 +25,11 @@ static SERVICE_STATUS        ServiceStatus;
 static SERVICE_STATUS_HANDLE ServiceStatusHandle = NULL;
 static ComServer* pComServer = NULL;
 static HANDLE                EventLog = NULL;
+
 extern "C" {
     const  ULONG                 tzuk = 'xobs';
 }
+#define POOL_TAG tzuk
 HMODULE               _Ntdll = NULL;
 HMODULE               _Kernel32 = NULL;
 SYSTEM_INFO           _SystemInfo;

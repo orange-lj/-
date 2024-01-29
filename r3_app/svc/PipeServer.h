@@ -4,6 +4,7 @@
 #include "map.h"
 #include"pool.h"
 #include"msgids.h"
+#include"misc.h"
 
 extern "C" const ULONG tzuk;
 

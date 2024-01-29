@@ -16,7 +16,7 @@
  */
 
 #include "map.h"
-
+#include"pool.h"
 struct map_node_t {
     unsigned int hash;
     void* value;

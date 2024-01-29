@@ -26,6 +26,8 @@
 #include "../common/defines.h"
 #include"../common/win32_ntddk.h"
 
+extern  const ULONG tzuk;
+
 #ifndef KERNEL_MODE
 #ifdef _M_ARM64EC
 P_NtAllocateVirtualMemoryEx __sys_NtAllocateVirtualMemoryEx = NULL;
