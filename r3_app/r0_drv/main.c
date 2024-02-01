@@ -71,6 +71,7 @@ DriverEntry(
 	PUNICODE_STRING RegistryPath
 )
 {
+	DbgBreakPoint();
 	BOOLEAN ok = TRUE;
 	//DrvRtPoolNxOptIn 可能是其中的一个标志，表示开启了对于 Non-Executive (NX) 启用的池的支持。
 	//NX 是一种硬件技术，用于防止缓冲区溢出攻击

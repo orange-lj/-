@@ -81,6 +81,29 @@ ULONG SbieApi_GetMessage(
 	wchar_t* Buffer,
 	ULONG Length);
 
+SBIEAPI_EXPORT
+LONG SbieApi_QueryProcess(
+	HANDLE ProcessId,
+	WCHAR* out_box_name_wchar34,        // WCHAR [34]
+	WCHAR* out_image_name_wchar96,      // WCHAR [96]
+	WCHAR* out_sid_wchar96,             // WCHAR [96]
+	ULONG* out_session_id);             // ULONG
+
+SBIEAPI_EXPORT
+LONG SbieApi_QueryProcessEx2(
+	HANDLE ProcessId,
+	ULONG image_name_len_in_wchars,
+	WCHAR* out_box_name_wchar34,        // WCHAR [34]
+	WCHAR* out_image_name_wcharXXX,     // WCHAR [?]
+	WCHAR* out_sid_wchar96,             // WCHAR [96]
+	ULONG* out_session_id,              // ULONG
+	ULONG64* out_create_time);          // ULONG64
+
+SBIEAPI_EXPORT
+LONG SbieApi_SessionLeader(
+	HANDLE TokenHandle,
+	HANDLE* ProcessId);
+
 #ifdef __cplusplus
 }
 #endif

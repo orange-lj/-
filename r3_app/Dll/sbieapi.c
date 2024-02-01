@@ -390,3 +390,116 @@ ULONG SbieApi_GetMessage(ULONG* MessageNum, ULONG SessionId, ULONG* MessageId, U
 
     return status;
 }
+
+
+LONG SbieApi_QueryProcess(
+    HANDLE ProcessId,
+    WCHAR* out_box_name_wchar34,
+    WCHAR* out_image_name_wchar96,
+    WCHAR* out_sid_wchar96,
+    ULONG* out_session_id)
+{
+    return SbieApi_QueryProcessEx2(
+        ProcessId, 96, out_box_name_wchar34, out_image_name_wchar96,
+        out_sid_wchar96, out_session_id, NULL);
+}
+
+
+LONG SbieApi_QueryProcessEx2(
+    HANDLE ProcessId,
+    ULONG image_name_len_in_wchars,
+    WCHAR* out_box_name_wchar34,
+    WCHAR* out_image_name_wcharXXX,
+    WCHAR* out_sid_wchar96,
+    ULONG* out_session_id,
+    ULONG64* out_create_time)
+{
+    NTSTATUS status;
+    __declspec(align(8)) UNICODE_STRING64 BoxName;
+    __declspec(align(8)) UNICODE_STRING64 ImageName;
+    __declspec(align(8)) UNICODE_STRING64 SidString;
+    __declspec(align(8)) ULONG64 parms[API_NUM_ARGS];
+    API_QUERY_PROCESS_ARGS* args = (API_QUERY_PROCESS_ARGS*)parms;
+
+    memzero(parms, sizeof(parms));
+    args->func_code = API_QUERY_PROCESS;
+
+    args->process_id.val64 = (ULONG64)(ULONG_PTR)ProcessId;
+
+    if (out_box_name_wchar34) {
+        BoxName.Length = 0;
+        BoxName.MaximumLength = (USHORT)(sizeof(WCHAR) * BOXNAME_COUNT);
+        BoxName.Buffer = (ULONG64)(ULONG_PTR)out_box_name_wchar34;
+        args->box_name.val64 = (ULONG64)(ULONG_PTR)&BoxName;
+    }
+
+    if (out_image_name_wcharXXX) {
+        ImageName.Length = 0;
+        ImageName.MaximumLength =
+            (USHORT)(sizeof(WCHAR) * image_name_len_in_wchars);
+        ImageName.Buffer = (ULONG64)(ULONG_PTR)out_image_name_wcharXXX;
+        args->image_name.val64 = (ULONG64)(ULONG_PTR)&ImageName;
+    }
+
+    if (out_sid_wchar96) {
+        SidString.Length = 0;
+        SidString.MaximumLength = (USHORT)(sizeof(WCHAR) * 96);
+        SidString.Buffer = (ULONG64)(ULONG_PTR)out_sid_wchar96;
+        args->sid_string.val64 = (ULONG64)(ULONG_PTR)&SidString;
+    }
+
+    if (out_session_id)
+        args->session_id.val64 = (ULONG64)(ULONG_PTR)out_session_id;
+
+    if (out_create_time)
+        args->create_time.val64 = (ULONG64)(ULONG_PTR)out_create_time;
+
+    status = SbieApi_Ioctl(parms);
+
+    if (!NT_SUCCESS(status)) {
+
+        ULONG_PTR x = (ULONG_PTR)out_session_id;
+        if (x == 0 || x > 4) {
+
+            //发生错误时重置参数，out_session_id是1到4范围内的特殊内部标志时除外
+            if (out_box_name_wchar34)
+                *out_box_name_wchar34 = L'\0';
+            if (out_image_name_wcharXXX)
+                *out_image_name_wcharXXX = L'\0';
+            if (out_sid_wchar96)
+                *out_sid_wchar96 = L'\0';
+            if (out_session_id)
+                *out_session_id = 0;
+        }
+    }
+
+    return status;
+}
+
+
+LONG SbieApi_SessionLeader(HANDLE TokenHandle, HANDLE* ProcessId)
+{
+    NTSTATUS status;
+    __declspec(align(8)) ULONG64 ResultValue;
+    __declspec(align(8)) ULONG64 parms[API_NUM_ARGS];
+    API_SESSION_LEADER_ARGS* args = (API_SESSION_LEADER_ARGS*)parms;
+
+    memset(parms, 0, sizeof(parms));
+    args->func_code = API_SESSION_LEADER;
+    if (ProcessId) {
+        args->token_handle.val64 = (ULONG64)(ULONG_PTR)TokenHandle;
+        args->process_id.val64 = (ULONG64)(ULONG_PTR)&ResultValue;
+    }
+    else {
+        args->token_handle.val64 = 0;
+        args->process_id.val64 = 0;
+    }
+    status = SbieApi_Ioctl(parms);
+
+    if (!NT_SUCCESS(status))
+        ResultValue = 0;
+    if (ProcessId)
+        *ProcessId = (HANDLE)ResultValue;
+
+    return status;
+}

@@ -235,7 +235,12 @@ ULONG Dll_GetNextProc(DLL_ENTRY* dll, const UCHAR* SearchName, UCHAR** FoundName
         }
         else 
         {
-        
+            i = *FoundIndex + 1;
+            if (i < dll->exports->NumberOfNames) {
+
+                dll_offset = addrs[ordis[i]];
+                dll_name = Dll_RvaToAddr(dll, names[i]);
+            }
         }
         *FoundName = dll_name;
         *FoundIndex = i;

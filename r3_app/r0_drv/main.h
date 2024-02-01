@@ -11,6 +11,7 @@
 #define KERNEL_MODE
 
 extern const ULONG tzuk;
+#define POOL_TAG tzuk
 extern const WCHAR* Driver_S_1_5_18;
 extern ULONG Driver_OsVersion;
 extern POOL* Driver_Pool;

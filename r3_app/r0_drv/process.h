@@ -2,6 +2,8 @@
 //#include"pool.h"
 #include"main.h"
 
+extern volatile BOOLEAN Process_ReadyToSandbox;
+
 
 BOOLEAN Process_Init(void);
 

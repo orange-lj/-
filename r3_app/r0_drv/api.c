@@ -26,6 +26,8 @@ static KIRQL Api_EnterCriticalSection(void);
 static void Api_LeaveCriticalSection(KIRQL oldirql);
 NTSTATUS Api_GetSecureParam(PROCESS* proc, ULONG64* parms);
 NTSTATUS KphVerifyBuffer(PUCHAR Buffer, ULONG BufferSize, PUCHAR Signature, ULONG SignatureSize);
+static NTSTATUS Api_GetMessage(PROCESS* proc, ULONG64* parms);
+
 
 void Api_SetFunction(ULONG func_code, P_Api_Function func_ptr)
 {
@@ -88,7 +90,7 @@ BOOLEAN Api_Init(void)
 	Api_SetFunction(API_GET_VERSION, Api_GetVersion);
 	////Api_SetFunction(API_GET_WORK,           Api_GetWork);
 	//Api_SetFunction(API_LOG_MESSAGE, Api_LogMessage);
-	//Api_SetFunction(API_GET_MESSAGE, Api_GetMessage);
+	Api_SetFunction(API_GET_MESSAGE, Api_GetMessage);
 	//Api_SetFunction(API_GET_HOME_PATH, Api_GetHomePath);
 	//Api_SetFunction(API_SET_SERVICE_PORT, Api_SetServicePort);
 	//
@@ -313,4 +315,95 @@ void Api_LeaveCriticalSection(KIRQL oldirql)
 {
 	ExReleaseResourceLite(Api_LockResource);
 	KeLowerIrql(oldirql);
+}
+
+
+NTSTATUS Api_GetMessage(PROCESS* proc, ULONG64* parms) 
+{
+	API_GET_MESSAGE_ARGS* args = (API_GET_MESSAGE_ARGS*)parms;
+	NTSTATUS status = STATUS_SUCCESS;
+	UNICODE_STRING64* msgtext;
+	WCHAR* msgtext_buffer;
+	KIRQL irql;
+
+	if (proc) //沙盒进程无法读取日志
+		return STATUS_NOT_IMPLEMENTED;
+
+	if (PsGetCurrentProcessId() != Api_ServiceProcessId) 
+	{
+		//只能对自己的会话执行非服务查询
+		//if (Session_GetLeadSession(PsGetCurrentProcessId()) != args->session_id.val)
+		//	return STATUS_ACCESS_DENIED;
+	}
+	ProbeForRead(args->msg_num.val, sizeof(ULONG), sizeof(ULONG));
+	ProbeForWrite(args->msg_num.val, sizeof(ULONG), sizeof(ULONG));
+
+	ProbeForWrite(args->msgid.val, sizeof(ULONG), sizeof(ULONG));
+	msgtext = args->msgtext.val;
+	if (!msgtext) 
+	{
+		return STATUS_INVALID_PARAMETER;
+	}
+	ProbeForRead(msgtext, sizeof(UNICODE_STRING64), sizeof(ULONG));
+	ProbeForWrite(msgtext, sizeof(UNICODE_STRING64), sizeof(ULONG));
+
+	msgtext_buffer = (WCHAR*)msgtext->Buffer;
+	if (!msgtext_buffer)
+		return STATUS_INVALID_PARAMETER;
+	irql = Api_EnterCriticalSection();
+	__try 
+	{
+		LOG_BUFFER_SEQ_T seq_number = *args->msg_num.val;
+		for (;;) 
+		{
+			CHAR* read_ptr = log_buffer_get_next(seq_number, Api_LogBuffer);
+			if (!read_ptr) 
+			{
+				status = STATUS_NO_MORE_ENTRIES;
+				break;
+			}
+			LOG_BUFFER_SIZE_T entry_size = log_buffer_get_size(&read_ptr, Api_LogBuffer);
+			seq_number = log_buffer_get_seq_num(&read_ptr, Api_LogBuffer);
+			ULONG session_id;
+			log_buffer_get_bytes((CHAR*)&session_id, 4, &read_ptr, Api_LogBuffer);
+			entry_size -= 4;
+			if (args->session_id.val != -1 && session_id != args->session_id.val) // Note: the service (session_id == -1) gets all the entries
+				continue;
+
+			ULONG process_id;
+			log_buffer_get_bytes((CHAR*)&process_id, 4, &read_ptr, Api_LogBuffer);
+			entry_size -= 4;
+
+			log_buffer_get_bytes((CHAR*)args->msgid.val, 4, &read_ptr, Api_LogBuffer);
+			entry_size -= 4;
+
+			if (args->process_id.val != NULL)
+			{
+				ProbeForWrite(args->process_id.val, sizeof(ULONG), sizeof(ULONG));
+				*args->process_id.val = process_id;
+			}
+
+			//我们将所有字符串返回一个
+			if (entry_size <= msgtext->MaximumLength)
+			{
+				msgtext->Length = (USHORT)entry_size;
+				ProbeForWrite(msgtext_buffer, entry_size, sizeof(WCHAR));
+				memcpy(msgtext_buffer, read_ptr, entry_size);
+			}
+			else
+			{
+				status = STATUS_BUFFER_TOO_SMALL;
+			}
+			//更新当一切正常时
+			*args->msg_num.val = seq_number; 
+			break;
+		}
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		status = GetExceptionCode();
+	}
+	Api_LeaveCriticalSection(irql);
+
+	return status;
+
 }

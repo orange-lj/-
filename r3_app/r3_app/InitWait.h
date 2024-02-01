@@ -8,7 +8,7 @@ class CInitWait :public CWnd
 	ULONG   m_svc_abi;
 	CString m_drv_ver;
 	ULONG   m_drv_abi;
-
+	BOOL m_try_elevate;
 	void GetVersions();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 public:

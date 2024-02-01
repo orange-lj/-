@@ -5,6 +5,8 @@
 #define MAX_DEPTH           10
 #define _F_ADDR_SIZE(f)     (((f) & 0xFFFF) >> 8)
 #define F_ADDR_SIZE()       (_F_ADDR_SIZE(inst->flags))
+#define _F_DATA_SIZE(f)     (((f) & 0xFF))
+#define F_DATA_SIZE()       (_F_DATA_SIZE(inst->flags))
 #define F_64_BIT            (0xF0 << 16)
 #define F_MAKE_COMBO(dataSize, addrSize, rex)   \
     (                                           \
@@ -12,7 +14,7 @@
         (((addrSize) & 0xFF) << 8) |            \
         (((rex) & 0xFF) << 16)                  \
     )
-
+#define F_REG(f)            ((f & 0x38) >> 3)
 //½á¹¹Ìå
 #pragma pack(push)
 #pragma pack(1)
@@ -155,8 +157,8 @@ void* Hook_GetNtServiceInternal(ULONG ServiceIndex, ULONG ParamCount)
     value = NULL;
     err[0] = err[1] = 0;
     if (ServiceIndex >= 0x2000 || (ServiceIndex & 0xFFF) >= 0x600) {
-        //err[0] = L'1';      // invalid service number
-        //goto finish;
+        err[0] = L'1';      // invalid service number
+        goto finish;
     }
     if (ServiceIndex & 0x1000) {
         Descr = &ShadowTable[1];
@@ -169,17 +171,19 @@ void* Hook_GetNtServiceInternal(ULONG ServiceIndex, ULONG ParamCount)
     if ((ParamCount <= 4 && TableCount != 0) ||
         (ParamCount > 4 && TableCount != ParamCount - 4)) {
 
-        //err[0] = L'2';      // parameter count mismatch
-        //goto finish;
+        err[0] = L'2';      // parameter count mismatch
+        goto finish;
     }
     offset = (LONG_PTR)Descr->Addrs[ServiceIndex];
     offset >>= 4;
 
     value = (UCHAR*)Descr->Addrs + offset;
 finish:
-    if (err[0])
+    if (err[0]) 
+    {
         //Log_Msg1(MSG_HOOK_NT_SERVICE, err);
-
+    }
+        
     return value;
 
 }
@@ -426,10 +430,134 @@ UCHAR* Hook_Analyze_Inst(UCHAR* addr, HOOK_INST* inst)
 
     op = addr[0];
     op2 = addr[1];
-    switch (Hook_Opcodes_1[op]) 
-    {
+
+    switch (Hook_Opcodes_1[op]) {
+
     case 1:
         return Hook_Analyze_ModRM(addr + 1, inst);
+
+    case 2:
+        return addr + 2;
+
+    case 3:
+        if (F_DATA_SIZE() == 8) {
+            inst->parm = *(ULONG64*)(addr + 1);
+            return addr + 1 + 8;
+        }
+        if (F_DATA_SIZE() == 4) {
+            inst->parm = (ULONG64) * (ULONG*)(addr + 1);
+            return addr + 1 + 4;
+        }
+        if (F_DATA_SIZE() == 2) {
+            inst->parm = (ULONG64) * (USHORT*)(addr + 1);
+            return addr + 1 + 2;
+        }
+        break;
+
+    case 4:
+        return Hook_Analyze_ModRM(addr + 1, inst) + 1;
+
+    case 5:
+        return Hook_Analyze_ModRM(addr + 1, inst) + F_DATA_SIZE();
+
+    case 6:
+        return addr + 1;
+
+    case 7:
+        return addr + 1 + F_ADDR_SIZE();
+    }
+
+    // special opcodes
+
+    if (op == 0xF6 || op == 0xF7) {
+        if (F_REG(op2) == 0) {          // F6/F7 test opcode
+            if (op == 0xF6)             // 8-bit
+                return Hook_Analyze_ModRM(addr + 1, inst) + 1;
+            else                        // 16/32-bit
+                return Hook_Analyze_ModRM(addr + 1, inst) + F_DATA_SIZE();
+        }
+        else {
+            // div, idiv, mul, imul, neg, not
+            return Hook_Analyze_ModRM(addr + 1, inst);
+        }
+    }
+
+    // double-byte opcodes escaped by FE
+
+    if (op == 0xFE) {
+
+        if (F_REG(op2) == 0 || F_REG(op2) == 1)         // inc/dec
+            return Hook_Analyze_ModRM(addr + 1, inst);
+
+    }
+
+    // double-byte opcodes escaped by FF
+
+    if (op == 0xFF) {
+
+        if (F_REG(op2) == 0 || F_REG(op2) == 1 ||       // inc/dec
+            F_REG(op2) == 6)                            // push
+            return Hook_Analyze_ModRM(addr + 1, inst);
+
+    }
+
+    // double-byte opcodes escaped by 0F
+
+    if (op == 0x0F) {
+
+        if ((op2 >= 0x19 && op2 <= 0x1F) ||     // nop r/m
+            (op2 >= 0x40 && op2 <= 0x4F) ||     // cmovxx r/m
+            (op2 >= 0x90 && op2 <= 0x9F))       // setxx r/m
+            return Hook_Analyze_ModRM(addr + 2, inst);
+
+        switch (op2) {
+
+        case 0x10:                  // movups xmm?
+            return addr + 4;
+        case 0x57:                  // xorps
+            return addr + 3;
+        case 0xA0:                  // push fs
+        case 0xA8:                  // push gs
+            return addr + 2;
+
+        case 0xA5:                  // shld r/m
+        case 0xAD:                  // shrd r/m
+        case 0xAF:                  // imul r/m
+        case 0xB6:                  // movzx r/m
+        case 0xB7:                  // movzx r/m
+        case 0xBE:                  // movsx r/m
+        case 0xBF:                  // movsx r/m
+        case 0xA3:                  // bt   r/m
+        case 0xAB:                  // bts  r/m
+        case 0xB3:                  // btr  r/m
+        case 0xBB:                  // btc  r/m
+            return Hook_Analyze_ModRM(addr + 2, inst);
+
+        case 0xBA:                  // bt, bts, btr, btc imm8
+        case 0xA4:                  // shld r/m, imm8
+        case 0xAC:                  // shrd r/m, imm8
+            return Hook_Analyze_ModRM(addr + 2, inst) + 1;
+        }
+
+        // special instruction
+
+        // DbgPrint("Inst = %02X/%02X\n", op, op2);
+
+        if (op2 == 0x00 || op2 == 0x01) {       // 0F 00/01
+
+            UCHAR op3 = addr[2];
+            op3 = ((op2 & 1) << 7) | F_REG(op3);
+
+            //DbgPrint("Addr[] = %02X/%02X --> %02X\n", op2, addr[2], op3);
+
+            if (op3 == 0x00 ||                          // sldt r/m
+                op3 == 0x01 ||                          // str r/m
+                op3 == 0x80 ||                          // sgdt mem
+                op3 == 0x81) {                          // sidt mem
+
+                return Hook_Analyze_ModRM(addr + 2, inst);
+            }
+        }
     }
 }
 
@@ -449,14 +577,14 @@ UCHAR* Hook_Analyze_CtlXfer(UCHAR* addr, HOOK_INST* inst)
         (op1 == 0xCD && op2 == 0x2E)) 
     {                 // int 2e
 
-        //inst->kind = INST_SYSCALL;
-        //addr += 2;
+        inst->kind = INST_SYSCALL;
+        addr += 2;
     }
 
     if (op1 == 0xCC) 
     {
-        //inst->kind = INST_RET;
-        //++addr;
+        inst->kind = INST_RET;
+        ++addr;
     }
 
     // return control transfer
@@ -465,11 +593,11 @@ UCHAR* Hook_Analyze_CtlXfer(UCHAR* addr, HOOK_INST* inst)
         op1 == 0xC2 || op1 == 0xCA) 
     {                   // ret, retf nnn
 
-        //inst->kind = INST_RET;
-        //if (op1 & 1)
-        //    ++addr;
-        //else
-        //    addr += 3;
+        inst->kind = INST_RET;
+        if (op1 & 1)
+            ++addr;
+        else
+            addr += 3;
     }
 
     // short jumps with an 8-bit displacement
@@ -479,9 +607,9 @@ UCHAR* Hook_Analyze_CtlXfer(UCHAR* addr, HOOK_INST* inst)
         (op1 == 0xEB)) 
     {                                // jmp disp8
 
-        //have_rel32 = TRUE;
-        //rel32 = (LONG) * (CHAR*)(addr + 1);
-        //addr += 2;
+        have_rel32 = TRUE;
+        rel32 = (LONG) * (CHAR*)(addr + 1);
+        addr += 2;
     }
 
     // control transfer to a near 32-bit displacement
@@ -489,17 +617,17 @@ UCHAR* Hook_Analyze_CtlXfer(UCHAR* addr, HOOK_INST* inst)
     if (op1 == 0x0F && (op2 & 0xF0) == 0x80) 
     {          // jcc disp32
 
-        //have_rel32 = TRUE;
-        //rel32 = *(LONG*)(addr + 2);
-        //addr += 6;
+        have_rel32 = TRUE;
+        rel32 = *(LONG*)(addr + 2);
+        addr += 6;
     }
 
     if (op1 == 0xE8 || op1 == 0xE9) 
     {                   // jmp/call disp32
-        //have_rel32 = TRUE;
-        //inst->rel32 = (LONG*)(addr + 1);
-        //rel32 = *inst->rel32;
-        //addr += 5;
+        have_rel32 = TRUE;
+        inst->rel32 = (LONG*)(addr + 1);
+        rel32 = *inst->rel32;
+        addr += 5;
     }
 
     // double-byte instructions
@@ -509,36 +637,36 @@ UCHAR* Hook_Analyze_CtlXfer(UCHAR* addr, HOOK_INST* inst)
 
         // control transfer using a register, no displacement
 
-        //if ((op2 >= 0xD0 && op2 <= 0xD7) ||             // call reg
-        //    (op2 >= 0xE0 && op2 <= 0xE7)) {             // jmp reg
-        //
-        //    inst->kind = INST_CTLXFER_REG;
-        //    inst->parm = op2 & 0x0F;
-        //    addr += 2;
-        //
-        //}
-        //else if (op2 == 0x12) {
-        //
-        //    // control transfer to [edx]
-        //
-        //    inst->kind = INST_CTLXFER_REG;
-        //    inst->parm = 0x80 | (op2 & 0x0F);
-        //    addr += 2;
-        //
-        //}
-        //else {
-        //
-        //    // control transfer using a modrm field
-        //
-        //    if ((op2 & 0x38) == 0x10 ||                     // call
-        //        (op2 & 0x38) == 0x18 ||                     // call
-        //        (op2 & 0x38) == 0x20 ||                     // jmp
-        //        (op2 & 0x38) == 0x28) {                     // jmp
-        //
-        //        inst->kind = (op2 >= 0x20) ? INST_JUMP_MEM : INST_CALL_MEM;
-        //        addr = Hook_Analyze_ModRM(addr + 1, inst);
-        //    }
-        //}
+        if ((op2 >= 0xD0 && op2 <= 0xD7) ||             // call reg
+            (op2 >= 0xE0 && op2 <= 0xE7)) {             // jmp reg
+        
+            inst->kind = INST_CTLXFER_REG;
+            inst->parm = op2 & 0x0F;
+            addr += 2;
+        
+        }
+        else if (op2 == 0x12) {
+        
+            // control transfer to [edx]
+        
+            inst->kind = INST_CTLXFER_REG;
+            inst->parm = 0x80 | (op2 & 0x0F);
+            addr += 2;
+        
+        }
+        else {
+        
+            // control transfer using a modrm field
+        
+            if ((op2 & 0x38) == 0x10 ||                     // call
+                (op2 & 0x38) == 0x18 ||                     // call
+                (op2 & 0x38) == 0x20 ||                     // jmp
+                (op2 & 0x38) == 0x28) {                     // jmp
+        
+                inst->kind = (op2 >= 0x20) ? INST_JUMP_MEM : INST_CALL_MEM;
+                addr = Hook_Analyze_ModRM(addr + 1, inst);
+            }
+        }
 
     }
 
@@ -547,20 +675,20 @@ UCHAR* Hook_Analyze_CtlXfer(UCHAR* addr, HOOK_INST* inst)
     if (op1 == 0xEA) 
     {
 
-        //USHORT seg = *(USHORT*)(addr + 5);
-        //if (seg == 0x001B || seg == 0x0023) {   // application CS == 0x001B
-        //    inst->kind = INST_CTLXFER;          // on 64-bit, also 0023 ?
-        //    inst->parm = *(ULONG*)(addr + 1);
-        //    addr += 7;
-        //}
+        USHORT seg = *(USHORT*)(addr + 5);
+        if (seg == 0x001B || seg == 0x0023) {   // application CS == 0x001B
+            inst->kind = INST_CTLXFER;          // on 64-bit, also 0023 ?
+            inst->parm = *(ULONG*)(addr + 1);
+            addr += 7;
+        }
     }
 
     // fix relative target address
 
     if (have_rel32) 
     {
-        //inst->kind = INST_CTLXFER;
-        //inst->parm = (ULONG_PTR)addr + rel32;
+        inst->kind = INST_CTLXFER;
+        inst->parm = (ULONG_PTR)addr + rel32;
     }
 
     return addr;

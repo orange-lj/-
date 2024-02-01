@@ -2,6 +2,8 @@
 #include"../svc/sbieiniwire.h"
 #include"../common/my_version.h"
 
+static WCHAR* SbieDll_StartError = NULL;
+
 const WCHAR* Support_SbieSvcKeyPath =
 L"\\registry\\machine\\system\\currentcontrolset\\services\\" SBIESVC;
 
@@ -261,4 +263,10 @@ ULONG SbieDll_FormatMessage_2(WCHAR** text_ptr, const WCHAR** ins)
 
     LocalFree(newtxt);
     return rc;
+}
+
+
+const WCHAR* SbieDll_GetStartError(void) 
+{
+    return SbieDll_StartError;
 }

@@ -6,12 +6,17 @@
 #include"api_defs.h"
 #include"../low/lowdata.h"
 #include"api.h"
+
+
+
+
 static LIST Syscall_List;
 
 static BOOLEAN Syscall_Init_List(void);
 static BOOLEAN Syscall_Init_Table(void);
 static BOOLEAN Syscall_Init_ServiceData(void);
 static ULONG Syscall_GetIndexFromNtdll(UCHAR* code);
+static void* Syscall_GetMasterServiceTable(void);
 static BOOLEAN Syscall_GetKernelAddr(
     ULONG index, void** pKernelAddr, ULONG* pParamCount);
 static NTSTATUS Syscall_DuplicateHandle(
@@ -30,6 +35,20 @@ static NTSTATUS Syscall_OpenHandle(
 static NTSTATUS Syscall_Api_Query(PROCESS* proc, ULONG64* parms);
 
 static NTSTATUS Syscall_Api_Invoke(PROCESS* proc, ULONG64* parms);
+
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Syscall_Init)
+#pragma alloc_text (INIT, Syscall_Init_List)
+#pragma alloc_text (INIT, Syscall_Init_Table)
+#pragma alloc_text (INIT, Syscall_Init_ServiceData)
+//#pragma alloc_text (INIT, Syscall_Set1)
+//#pragma alloc_text (INIT, Syscall_Set2)
+//#pragma alloc_text (INIT, Syscall_ErrorForAsciiName)
+//#pragma alloc_text (INIT, Syscall_GetIndexFromNtdll)
+//#pragma alloc_text (INIT, Syscall_GetKernelAddr)
+//#pragma alloc_text (INIT, Syscall_GetServiceTable)
+#endif // ALLOC_PRAGMA
 
 //变量
 static ULONG Syscall_MaxIndex = 0;
@@ -65,6 +84,34 @@ void* Syscall_GetServiceTable(void)
     {
         return ShadowTable;
     }
+    //影子表应该在主表之前0x40字节（在Windows XP（64位）上），
+        //和主表后的0x40字节，在Windows Vista上（64位）
+        //主表后0xC0字节，在Vista SP 2上（64位）
+    MasterTable = (SERVICE_DESCRIPTOR*)Syscall_GetMasterServiceTable();
+    if (!MasterTable) 
+    {
+        //Log_Msg1(MSG_1113, L"MASTER TABLE");
+        return NULL;
+    }
+    if (Driver_OsBuild >= 17682) {
+        //在windows 10中，ShadowTable和MasterTable指向相同的内存它们是相等的。
+        ShadowTable = (SERVICE_DESCRIPTOR*)MasterTable;
+    }
+    else if (Driver_OsBuild >= 9800) 
+    {
+    
+    }
+    else 
+    {
+    
+    }
+    if (ShadowTable->Addrs != MasterTable->Addrs) {
+
+        //Log_Msg1(MSG_1113, L"SHADOW TABLE");
+        ShadowTable = NULL;
+    }
+    return ShadowTable;
+
 }
 
 BOOLEAN Syscall_Init(void)
@@ -260,12 +307,12 @@ BOOLEAN Syscall_Init_List(void)
             || IS_PROC_NAME(15, "TerminateThread")
             ) 
         {
-            //goto next_zwxxx;
+            goto next_zwxxx;
         }
         //在64位Windows上，有些系统调用是假的，应该跳过
         if (IS_PROC_NAME(15, "QuerySystemTime")) 
         {
-            //goto next_zwxxx;
+            goto next_zwxxx;
         }
         //ICD-10607-McAfee使用它在堆栈中传递自己的数据。这个call对我们来说并不重要。
         //if (    IS_PROC_NAME(14, "YieldExecution")) // $Workaround$ - 3rd party fix
@@ -427,6 +474,109 @@ ULONG Syscall_GetIndexFromNtdll(UCHAR* code)
         //Log_Msg1(MSG_1113, L"INDEX");
     }
     return index;
+}
+
+void* Syscall_GetMasterServiceTable(void)
+{
+    NTSTATUS status;
+    void* MasterTable;
+
+    UNICODE_STRING uni;
+    UCHAR* ptr;
+    ULONG i;
+    ULONG_PTR nt, nt_from_code;
+    ULONG ofs32a;
+    ULONG ofs32b;
+
+    //如果NTOSKRNL导出ServiceDescriptorTable，请使用
+    RtlInitUnicodeString(&uni, L"KeServiceDescriptorTable");
+    MasterTable = MmGetSystemRoutineAddress(&uni);
+    if (MasterTable)
+        return MasterTable;
+
+    //否则我们自己也会发现。首先查找NT内核的加载位置。这在Vista上可能是可变的
+    ptr = ExAllocatePoolWithTag(PagedPool, PAGE_SIZE, tzuk);
+    if (!ptr) {
+
+        //Log_Msg0(MSG_1104);
+        return NULL;
+    }
+    i = 0;
+    status = ZwQuerySystemInformation(
+        SystemModuleInformation, ptr, PAGE_SIZE, &i);
+    if (status != STATUS_SUCCESS &&
+        status != STATUS_INFO_LENGTH_MISMATCH) 
+    {
+        ExFreePoolWithTag(ptr, tzuk);
+        return NULL;
+    }
+    nt = ((SYSTEM_MODULE_INFORMATION*)ptr)->ModuleInfo[0].ImageBaseAddress;
+    ExFreePoolWithTag(ptr, tzuk);
+
+    //接下来，分析KeAddSystemServiceTable以了解影子表在何处
+    RtlInitUnicodeString(&uni, L"KeAddSystemServiceTable");
+    ptr = (UCHAR*)MmGetSystemRoutineAddress(&uni);
+    if (!ptr)
+        return NULL;
+    //适用于Windows 11内部22563或服务器2022 20348的MasterTable查找
+    if (Driver_OsBuild >= 20348) 
+    {
+    
+    }
+    //Windows 10的主表查找
+    if (Driver_OsBuild >= 10041) 
+    {
+        ULONG_PTR kernel_base = nt;
+        RtlInitUnicodeString(&uni, L"KeAddSystemServiceTable");
+        ptr = (UCHAR*)MmGetSystemRoutineAddress(&uni);
+        DbgPrint("Trying KeAddSystemServiceTable = %p, OS = %d, Pattern = LEA MOV\n", ptr, Driver_OsBuild);
+        nt = 0;
+        for (i = 10, ptr = ptr + 10; i < 0xa0; i++, ptr++) {
+            LONG delta;
+            //filter on full 64 bit only opcodes.
+            if (*ptr == 0x48 || *ptr == 0x4c || *ptr == 0x44) { //parse rex prefix
+                //switch(operand 1)
+                switch (ptr[1]) {
+                    unsigned long testDelta;
+                case 0x8d:  //LEA instruction is first:  sets a target address
+                            //if another LEA in a instruction is discovered before an associated
+                            //MOV instruction is found.  A new target address is set based on the
+                            //the new LEA instruction if the target is in the target memory 
+                            //range.
+                    delta = *(LONG*)(ptr + 3);
+                    testDelta = delta * -1;
+                    if (ptr[0] == 0x44 && ptr[2] == 0x90 && delta > 0 && delta < 0x400000) {
+                        nt = kernel_base + delta;
+                        i += 6;
+                        ptr += 6;
+                    }
+                    //test operand 2 is in register range
+                    else if (ptr[2] < 0x20) {
+                        nt = (LONG_PTR)(ptr + 7) + delta;
+                        i += 6;
+                        ptr += 6;
+                    }
+                    break;
+                case 0x89:  //MOV instruction is second: verifies the discovered target address in the
+                            //previous LEA instruction.
+                    delta = *(LONG*)(ptr + 3);
+                    //test operand 2 is in register range
+                    if (ptr[2] < 0x20 && nt && nt == (LONG_PTR)(ptr + 7) + delta) {
+                        if (Driver_OsBuild >= 17682) {
+                            nt -= 0x20;
+                        }
+                        else {
+                            nt += 0x20;
+                        }
+                        return (void*)nt;
+                    }
+                    break;
+                }
+            }
+        }
+
+        return 0; //target address not found
+    }
 }
 
 BOOLEAN Syscall_GetKernelAddr(ULONG index, void** pKernelAddr, ULONG* pParamCount)

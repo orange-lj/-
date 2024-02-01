@@ -9,6 +9,8 @@
 extern "C" const ULONG tzuk;
 
 
+#define SHORT_REPLY(st) (PipeServer::GetPipeServer()->AllocShortMsg(st))
+
 class PipeServer
 {
 public:
@@ -25,6 +27,20 @@ public:
 	void Register(
 		ULONG serverId, void* context, Handler handler);
 
+	//制造带有错误的短回复消息子服务器可以使用short_REPPLY宏
+	MSG_HEADER* AllocShortMsg(ULONG status);
+
+	//分配请求 / 回复消息缓冲区
+	MSG_HEADER* AllocMsg(ULONG length);
+
+	//释放请求 / 回复消息缓冲区
+	void FreeMsg(MSG_HEADER* msg);
+
+	//获取调用方的进程id
+	static ULONG GetCallerProcessId();
+
+	//获取呼叫者的会话id
+	static ULONG GetCallerSessionId();
 protected:
 	//私有构造函数
 	PipeServer();
@@ -34,7 +50,18 @@ protected:
 	static void ThreadStub(void* parm);
 	//用于侦听hServerPort的线程函数
 	void Thread(void);
+	//Port Request
+	void PortRequest(
+		HANDLE PortHandle, PORT_MESSAGE* msg, void* voidClient);
+	//Port Reply
+	void PortReply(PORT_MESSAGE* msg, void* voidClient);
+	//端口查找客户端
+	void* PortFindClient(PORT_MESSAGE* msg);
+	//调用注册的子服务器
+	MSG_HEADER* CallTarget(
+		MSG_HEADER* msg, HANDLE PortHandle, PORT_MESSAGE* PortMessage);
 protected:
+	void PortFindClientUnsafe(const CLIENT_ID& ClientId, struct tagCLIENT_PROCESS*& clientProcess, struct tagCLIENT_THREAD*& clientThread);
 	LIST m_targets;
 	HASH_MAP m_client_map;
 	CRITICAL_SECTION m_lock;

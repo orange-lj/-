@@ -7,6 +7,7 @@ class DriverAssist
 	//主和驱动程序的初始化功能
 public:
 	static bool Initialize();
+	static bool IsDriverReady();
 private:
 	DriverAssist();
 	bool InitializePortAndThreads();

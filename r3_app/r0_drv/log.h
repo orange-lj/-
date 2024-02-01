@@ -4,6 +4,7 @@
 #include"msgs.h"
 
 #define MSG_DRIVER_ENTRY_OK                                 MSG_1101
+#define LOG_BUFFER_SIZE_T ULONG
 #define LOG_BUFFER_SEQ_T ULONG
 #define Log_Msg1(error_code,str1) \
     Log_Msg(error_code,str1,NULL)
@@ -45,3 +46,13 @@ void Log_Popup_MsgEx(
 	const WCHAR* string2, ULONG string2_len,
 	ULONG session_id,
 	HANDLE pid);
+
+CHAR* log_buffer_get_next(LOG_BUFFER_SEQ_T seq_number, LOG_BUFFER* ptr_buffer);
+
+LOG_BUFFER_SIZE_T log_buffer_get_size(CHAR** read_ptr, LOG_BUFFER* ptr_buffer);
+
+BOOLEAN log_buffer_get_bytes(CHAR* data, SIZE_T size, CHAR** read_ptr, LOG_BUFFER* ptr_buffer);
+
+CHAR* log_buffer_byte_at(CHAR** data_ptr, LOG_BUFFER* ptr_buffer);
+
+LOG_BUFFER_SEQ_T log_buffer_get_seq_num(CHAR** read_ptr, LOG_BUFFER* ptr_buffer);

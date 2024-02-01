@@ -12,6 +12,7 @@ PERESOURCE Process_ListLock = NULL;
 static KEVENT* Process_Low_Event = NULL;
 static BOOLEAN Process_NotifyImageInstalled = FALSE;
 static BOOLEAN Process_NotifyProcessInstalled = FALSE;
+volatile BOOLEAN Process_ReadyToSandbox = FALSE;
 
 static NTSTATUS Process_Low_Api_InjectComplete(
 	PROCESS* proc, ULONG64* parms);

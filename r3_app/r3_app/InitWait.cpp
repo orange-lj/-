@@ -24,16 +24,67 @@ void CInitWait::GetVersions()
 		MSG_HEADER* rpl = SbieDll_CallServer(&req);
 		if (rpl) 
 		{
-		
+			if (rpl->status == 0) 
+			{
+				init_complete = true;
+			}
+			SbieDll_FreeMem(rpl);
 		}
 		if (!init_complete)
 			return;
+	}
+	if (m_svc_ver.GetAt(0) == L'?') 
+	{
+		SBIE_INI_GET_VERSION_REQ req;
+		req.h.length = sizeof(SBIE_INI_GET_VERSION_REQ);
+		req.h.msgid = MSGID_SBIE_INI_GET_VERSION;
+		SBIE_INI_GET_VERSION_RPL* rpl =
+			(SBIE_INI_GET_VERSION_RPL*)SbieDll_CallServer(&req.h);
+		if (rpl) 
+		{
+			if (rpl->h.status == 0 && rpl->version[0]) 
+			{
+				m_svc_ver = rpl->version;
+				m_svc_abi = rpl->abi_ver;
+				if (m_svc_abi != MY_ABI_VERSION)
+					fail = TRUE;
+			}
+			SbieDll_FreeMem(rpl);
+		}
+	}
+	if (m_drv_ver.GetAt(0) == L'?') {
+
+		SbieApi_GetVersionEx(drv_ver, &m_drv_abi);
+		if (drv_ver[0] && _wcsicmp(drv_ver, L"unknown") != 0) {
+			m_drv_ver = drv_ver;
+			if (m_drv_abi != MY_ABI_VERSION)
+				fail = TRUE;
+		}
+	}
+
+	if (fail) {
+		//CMyMsg msg(MSG_3304, m_app_ver, m_svc_ver, m_drv_ver);
+		//CMyApp::MsgBox(NULL, msg, MB_OK);
+		exit(0);
 	}
 }
 
 void CInitWait::OnTimer(UINT_PTR nIDEvent)
 {
 	GetVersions();
+	if (m_svc_abi == MY_ABI_VERSION && m_drv_abi == MY_ABI_VERSION) 
+	{
+	
+	}
+	else if (m_try_elevate) 
+	{
+		//在Windows Vista上，提升以启动服务
+		const WCHAR* StartError = SbieDll_GetStartError();
+		if (StartError && wcsstr(StartError, L"[22 / 5]")) 
+		{
+		
+		}
+	}
 }
 
 CInitWait::CInitWait(CWinApp* myApp)
@@ -44,7 +95,7 @@ CInitWait::CInitWait(CWinApp* myApp)
 	m_svc_abi = 0;
 	m_drv_ver = L"?";
 	m_drv_abi = 0;
-
+	m_try_elevate = Cr3appApp::m_WindowsVista;
 	GetVersions();
 	if (m_svc_abi == MY_ABI_VERSION && m_drv_abi == MY_ABI_VERSION)
 		return;

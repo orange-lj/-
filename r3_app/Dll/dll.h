@@ -102,7 +102,7 @@ typedef struct _THREAD_DATA
 
     HANDLE          PortHandle;
     ULONG           MaxDataLen;
-    //ULONG           SizeofPortMsg;
+    ULONG           SizeofPortMsg;
     //BOOLEAN         bOperaFileDlgThread;
 
     ////

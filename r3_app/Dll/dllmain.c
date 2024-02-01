@@ -9,6 +9,7 @@ ULONG Dll_Windows = 0;
 BOOLEAN Dll_SbieTrace = FALSE;
 
 ULONG Dll_SessionId = 0;
+HMODULE Dll_DigitalGuardian = NULL;
 const WCHAR* Dll_BoxName = NULL;
 HMODULE Dll_Ntdll = NULL;
 HMODULE Dll_Kernel32 = NULL;
@@ -32,6 +33,7 @@ BOOL APIENTRY DllMain( HINSTANCE hInstance,
     switch (ul_reason_for_call)
     {
     case DLL_PROCESS_ATTACH:
+        Dll_DigitalGuardian = GetModuleHandleA("DgApi64.dll");
         Dll_OsBuild = GET_PEB_IMAGE_BUILD;
         if (GetProcAddress(GetModuleHandleA("ntdll.dll"), "LdrFastFailInLoaderCallout"))
             Dll_Windows = 10;
@@ -39,6 +41,7 @@ BOOL APIENTRY DllMain( HINSTANCE hInstance,
             Dll_Windows = 8;
         ProcessIdToSessionId(GetCurrentProcessId(), &Dll_SessionId);
         Dll_InitGeneric(hInstance);
+        SbieDll_HookInit();
     case DLL_THREAD_ATTACH:
     case DLL_THREAD_DETACH:
     case DLL_PROCESS_DETACH:

@@ -1,6 +1,7 @@
 #include "SbieIniServer.h"
 #include"../common/ini.h"
 #include"../Dll/sbiedll.h"
+#include"../Dll/sbieapi.h"
 SbieIniServer* SbieIniServer::m_instance = NULL;
 
 SbieIniServer::SbieIniServer(PipeServer* pipeServer)
@@ -29,5 +30,19 @@ void SbieIniServer::LockConf(WCHAR* IniPath)
 
 MSG_HEADER* SbieIniServer::Handler(void* _this, MSG_HEADER* msg)
 {
-	return nullptr;
+	SbieIniServer* pThis = (SbieIniServer*)_this;
+	EnterCriticalSection(&pThis->m_critsec);
+	MSG_HEADER* rpl = pThis->Handler2(msg);
+	LeaveCriticalSection(&pThis->m_critsec);
+	return rpl;
+}
+
+MSG_HEADER* SbieIniServer::Handler2(MSG_HEADER* msg)
+{
+	//处理来自任何进程的运行sbie-ctrl请求，否则调用者不能被沙盒化，我们模拟调用者
+	/*HANDLE idProcess = (HANDLE)(ULONG_PTR)PipeServer::GetCallerProcessId();
+	m_session_id = PipeServer::GetCallerSessionId();
+	NTSTATUS status =
+		SbieApi_QueryProcess(idProcess, NULL, NULL, NULL, NULL);*/
+	return msg;
 }

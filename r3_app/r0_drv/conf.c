@@ -100,6 +100,10 @@ BOOLEAN Conf_Init(void)
 	Api_SetFunction(API_QUERY_CONF, Conf_Api_Query);
 }
 
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Conf_Init_User)
+#endif // ALLOC_PRAGMA
+
 BOOLEAN Conf_Init_User(void)
 {
 	List_Init(&Conf_Users);

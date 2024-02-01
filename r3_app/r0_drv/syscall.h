@@ -28,6 +28,7 @@ int Syscall_HookMapMatch(const UCHAR* name, ULONG name_len, LIST* list);
 VOID Syscall_FreeHookMap(LIST* list);
 
 struct _SYSCALL_ENTRY {
+	LIST_ELEM list_elm;
 	USHORT syscall_index;
 	USHORT param_count;
 	ULONG ntdll_offset;

@@ -44,6 +44,14 @@ bool DriverAssist::Initialize()
     return true;
 }
 
+bool DriverAssist::IsDriverReady()
+{
+    if (m_instance && m_instance->m_DriverReady)
+        return true;
+    else
+        return false;
+}
+
 DriverAssist::DriverAssist()
 {
     m_PortHandle = NULL;
@@ -255,7 +263,7 @@ driver_started:
     if (ok) 
     {
         //触发LogMessage的手动调用，以收集驱动程序启动时记录的所有消息
-
+        m_instance->LogMessage();
     }
     return STATUS_SUCCESS;
 }

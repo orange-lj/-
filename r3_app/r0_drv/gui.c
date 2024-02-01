@@ -2,6 +2,7 @@
 #include"api_defs.h"
 #include"util.h"
 #include"api.h"
+#include"process.h"
 typedef struct _GUI_CLIPBOARD {
     ULONG* items;
     ULONG count;
@@ -10,6 +11,8 @@ typedef struct _GUI_CLIPBOARD {
 static ULONG Gui_ClipboardItemLength = 0;
 static ULONG Gui_ClipboardIntegrityIndex = 0;
 
+
+static NTSTATUS Gui_Api_Init(PROCESS* proc, ULONG64* parms);
 static NTSTATUS Gui_Api_Clipboard(PROCESS* proc, ULONG64* parms);
 static void Gui_InitClipboard();
 static void Gui_FixClipboard(ULONG integrity);
@@ -17,7 +20,7 @@ static void Gui_FixClipboard(ULONG integrity);
 
 BOOLEAN Gui_Init(void)
 {
-    //Api_SetFunction(API_INIT_GUI, Gui_Api_Init);
+    Api_SetFunction(API_INIT_GUI, Gui_Api_Init);
     Api_SetFunction(API_GUI_CLIPBOARD, Gui_Api_Clipboard);
 
     return TRUE;
@@ -142,4 +145,15 @@ void Gui_FixClipboard(ULONG integrity)
     //        ptr += Gui_ClipboardItemLength;
     //    }
     //}
+}
+
+NTSTATUS Gui_Api_Init(PROCESS* proc, ULONG64* parms) 
+{
+    NTSTATUS status = STATUS_SUCCESS;
+    if (NT_SUCCESS(status) && (!Process_ReadyToSandbox)) {
+
+        Process_ReadyToSandbox = TRUE;
+    }
+
+    return status;
 }

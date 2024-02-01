@@ -164,6 +164,9 @@ BOOL Cr3appApp::InitInstance()
 	//等待Sandboxie完成初始化
 	CInitWait initwait(this);
 
+	//接任Sandboxie会话负责人
+	SbieApi_SessionLeader(0, NULL);
+
 	//Cr3appDlg dlg;
 	//m_pMainWnd = &dlg;
 	//INT_PTR nResponse = dlg.DoModal();

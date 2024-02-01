@@ -1,6 +1,9 @@
 #include "obj.h"
 #include"mem.h"
 #include"../common/defines.h"
+
+#define PAD_LEN         (4 * sizeof(WCHAR))
+
 POBJECT_TYPE* Obj_ObjectTypes = NULL;
 BOOLEAN Obj_CallbackInstalled = FALSE;
 P_ObGetObjectType pObGetObjectType = NULL;
@@ -20,8 +23,116 @@ static OB_PREOP_CALLBACK_STATUS Obj_PreOperationCallback(
 
 NTSTATUS Obj_GetName(POOL* pool, void* Object, OBJECT_NAME_INFORMATION** Name, ULONG* NameLength)
 {
-    //具体实现下次补上
-	return STATUS_SUCCESS;
+    NTSTATUS status;
+    UCHAR small_info_space[80];
+    OBJECT_NAME_INFORMATION* small_info;
+    ULONG len;
+    OBJECT_NAME_INFORMATION* info;
+    ULONG info_len;
+
+    *Name = NULL;
+    *NameLength = 0;
+
+    //在小缓冲区上调用ObQueryNameString。即使减去PAD_LEN字节，小缓冲区也必须大于sizeof（OBJECT_NAME_INFORMATION）。
+    //换句话说，保持小缓冲区至少在32字节左右（取决于PAD_LEN）
+
+    //有时ObQueryNameString会混淆，并返回STATUS_OBJECT_PATH_INVALID，在这种情况下，我们只使用稍小的缓冲区进行调用
+    memzero(small_info_space, sizeof(small_info_space));
+    small_info = (OBJECT_NAME_INFORMATION*)small_info_space;
+
+    len = 0;        // must be initialized
+    status = ObQueryNameString(
+        Object, small_info, sizeof(small_info_space) - PAD_LEN, &len);
+    if (status == STATUS_OBJECT_PATH_INVALID) 
+    {
+        len = 0;        // must be initialized
+        status = ObQueryNameString(
+            Object, small_info,
+            sizeof(small_info_space) - PAD_LEN * 2, &len);
+    }
+    if (NT_SUCCESS(status)) 
+    {
+        //我们将名称完全放入小缓冲区中，因此我们分配一个池缓冲区并复制名称字符串
+    }
+    if (status != STATUS_INFO_LENGTH_MISMATCH &&
+        status != STATUS_BUFFER_OVERFLOW) 
+    {
+        return status;
+    }
+    //在Windows 2000上，我们可能会得到STATUS_INFO_LENGTH_MISMATCH，但结果长度为零，在这种情况下，我们必须使用更大的缓冲区重试
+    info = NULL;
+    info_len = 0;
+
+    while (!len) 
+    {
+    
+    }
+    //在Windows XP中，我们应该得到一个结果长度，而不是
+    //进入上面的循环，所以info仍然是NULL，我们需要
+    //来分配它并再次查询名称
+    if (!info) 
+    {
+        info_len = len + PAD_LEN * 2;
+        info = (OBJECT_NAME_INFORMATION*)Mem_Alloc(pool, info_len);
+        if (!info)
+            return STATUS_INSUFFICIENT_RESOURCES;
+
+        memzero(info, info_len);
+        len = 0;        // must be initialized
+        status = ObQueryNameString(
+            Object, info, info_len - PAD_LEN, &len);
+
+        if (!NT_SUCCESS(status)) {
+            Mem_Free(info, info_len);
+            return status;
+        }
+    }
+    //最后，我们只需要确保名称不是空的
+finish:
+
+    if (info && info->Name.Length && info->Name.Buffer) {
+
+        //
+        // On Windows 7, we may get two leading backslashes
+        //
+
+        if (Driver_OsVersion >= DRIVER_WINDOWS_7 &&
+            info->Name.Length >= 2 * sizeof(WCHAR) &&
+            info->Name.Buffer[0] == L'\\' &&
+            info->Name.Buffer[1] == L'\\') {
+
+            WCHAR* Buffer = info->Name.Buffer;
+            USHORT Length = info->Name.Length;
+
+            Length = Length / sizeof(WCHAR) - 1;
+            wmemmove(Buffer, Buffer + 1, Length);
+            Buffer[Length] = L'\0';
+
+            info->Name.Length -= sizeof(WCHAR);
+            info->Name.MaximumLength -= sizeof(WCHAR);
+        }
+
+        *Name = info;
+        *NameLength = info_len;
+
+    }
+    else {
+
+        //if (info)
+        //    Mem_Free(info, info_len);
+        //
+        //*Name = (OBJECT_NAME_INFORMATION*)&Obj_Unnamed;
+        //*NameLength = 0;
+    }
+
+    /*if (0) {
+        OBJECT_NAME_INFORMATION *xname = *Name;
+        WCHAR *xbuf = xname->Name.Buffer;
+        ULONG xlen  = xname->Name.Length / sizeof(WCHAR);
+        DbgPrint("Object Name: %*.*S\n", xlen, xlen, xbuf);
+    }*/
+
+    return STATUS_SUCCESS;
 }
 
 BOOLEAN Obj_Init(void)
