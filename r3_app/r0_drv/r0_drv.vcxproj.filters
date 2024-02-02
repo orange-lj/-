@@ -94,6 +94,9 @@
     <ClCompile Include="verify.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="wfp.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="main.h">
@@ -191,6 +194,9 @@
     </ClInclude>
     <ClInclude Include="..\common\pool.h">
       <Filter>common</Filter>
+    </ClInclude>
+    <ClInclude Include="wfp.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

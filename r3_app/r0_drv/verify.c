@@ -6,11 +6,20 @@
 #define KPH_HASH_ALGORITHM BCRYPT_SHA256_ALGORITHM
 #define KPH_BLOB_PUBLIC BCRYPT_ECCPUBLIC_BLOB
 
+//wchar_t g_uuid_str[40] = { 0 };
+
 typedef struct {
     BCRYPT_ALG_HANDLE algHandle;
     BCRYPT_HASH_HANDLE handle;
     PVOID object;
 } MY_HASH_OBJ;
+
+
+//BOOLEAN GetFwUuid(unsigned char* uuid) 
+//{
+//
+//}
+
 
 NTSTATUS MyInitHash(MY_HASH_OBJ* pHashObj) 
 {
@@ -141,3 +150,29 @@ CleanupExit:
     return status;
 
 }
+
+
+//void InitFwUuid() 
+//{
+//    UCHAR uuid[16];
+//    if (GetFwUuid(uuid)) 
+//    {
+//        wchar_t* ptr = g_uuid_str;
+//        int i;
+//        for (i = 0; i < 4; i++)
+//            ptr = hexbyte(uuid[i], ptr);
+//        *ptr++ = '-';
+//        for (; i < 6; i++)
+//            ptr = hexbyte(uuid[i], ptr);
+//        *ptr++ = '-';
+//        for (; i < 8; i++)
+//            ptr = hexbyte(uuid[i], ptr);
+//        *ptr++ = '-';
+//        for (; i < 10; i++)
+//            ptr = hexbyte(uuid[i], ptr);
+//        *ptr++ = '-';
+//        for (; i < 16; i++)
+//            ptr = hexbyte(uuid[i], ptr);
+//        *ptr++ = 0;
+//    }
+//}

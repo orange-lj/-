@@ -3,6 +3,7 @@
 #include"../common/defines.h"
 #include"process.h"
 #include"../common/my_version.h"
+#include"util.h"
 NTSTATUS GetRegString(ULONG RelativeTo, const WCHAR* Path, const WCHAR* ValueName, UNICODE_STRING* pData)
 {
 	NTSTATUS status;
@@ -122,3 +123,18 @@ BOOLEAN MyIsCallerSigned(void)
 
 	return TRUE;
 }
+
+//extern wchar_t g_uuid_str[40];
+//void InitFwUuid();
+//NTSTATUS MyValidateCertificate(void) 
+//{
+//	if (!*g_uuid_str)
+//		InitFwUuid();
+//
+//	NTSTATUS status = KphValidateCertificate();
+//
+//	if (status == STATUS_ACCOUNT_EXPIRED)
+//		status = STATUS_SUCCESS;
+//
+//	return status;
+//}

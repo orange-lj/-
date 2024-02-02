@@ -11,6 +11,13 @@ static NTSTATUS File_QueryTeardown(
     PCFLT_RELATED_OBJECTS FltObjects,
     FLT_INSTANCE_QUERY_TEARDOWN_FLAGS Flags);
 
+static BOOLEAN File_Init_Filter(void);
+
+#ifdef ALLOC_DATA_PRAGMA
+#pragma data_seg("INITDATA")
+#pragma const_seg("INITDATA")
+#endif
+
 #define FILE_CALLBACK(irp) { irp, 0, File_PreOperation, NULL, NULL },
 
 //变量
@@ -99,12 +106,25 @@ static const FLT_REGISTRATION File_Registration = {
     NULL                                    //  NormalizeNameComponent
 
 };
+
+
+#ifdef ALLOC_DATA_PRAGMA
+#pragma data_seg()
+#pragma const_seg()
+#endif
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, File_Init_Filter)
+#endif // ALLOC_PRAGMA
+
 PFLT_FILTER File_FilterCookie = NULL;
 static LIST File_ReparsePointsList;
 static PERESOURCE File_ReparsePointsLock = NULL;
 
-static BOOLEAN File_Init_Filter(void);
+
 extern void File_InitReparsePoints(BOOLEAN init);
+
+
 
 
 BOOLEAN File_Init(void)
@@ -116,7 +136,8 @@ BOOLEAN File_Init(void)
     if (!p_File_Init_2())
         return FALSE;
     //初始化重分析点
-    //File_InitReparsePoints(TRUE);
+    File_InitReparsePoints(TRUE);
+
     //设置适用于XP和Vista的系统调用处理程序
     //if (!Syscall_Set1("CreatePagingFile", File_CreatePagingFile))
     //    return FALSE;

@@ -59,6 +59,14 @@ static BOOLEAN Driver_InitPublicSecurity(void);
 static BOOLEAN Driver_FindHomePath(UNICODE_STRING* RegistryPath);
 static BOOLEAN Driver_FindMissingServices(void);
 
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, DriverEntry)
+#pragma alloc_text (INIT, Driver_CheckOsVersion)
+#pragma alloc_text (INIT, Driver_FindHomePath)
+#pragma alloc_text (INIT, Driver_FindMissingServices)
+#endif // ALLOC_PRAGMA
+
+
 VOID
 DriverUnload(
 	PDRIVER_OBJECT pDriverObj
@@ -112,6 +120,8 @@ DriverEntry(
 	{
 		ok = Driver_FindHomePath(RegistryPath);
 	}
+	//MyValidateCertificate();
+
 	//初始化简单的实用程序模块。这些不能钩住任何东西
 	if (ok)
 	{

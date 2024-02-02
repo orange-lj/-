@@ -12,3 +12,5 @@ BOOLEAN MyIsCurrentProcessRunningAsLocalSystem(void);
 
 //如果当前进程具有有效的自定义签名，则返回TRUE
 BOOLEAN MyIsCallerSigned(void);
+
+NTSTATUS MyValidateCertificate(void);
