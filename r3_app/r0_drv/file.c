@@ -114,6 +114,7 @@ static const FLT_REGISTRATION File_Registration = {
 #endif
 
 #ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, File_Init)
 #pragma alloc_text (INIT, File_Init_Filter)
 #endif // ALLOC_PRAGMA
 

@@ -4,6 +4,20 @@
 
 #define PAD_LEN         (4 * sizeof(WCHAR))
 
+static OBJECT_TYPE* Obj_GetObjectType(const WCHAR* TypeName);
+static BOOLEAN Obj_AddObjectType(const WCHAR* TypeName);
+static BOOLEAN Obj_Init_Filter(void);
+static OB_PREOP_CALLBACK_STATUS Obj_PreOperationCallback(
+    _In_ PVOID RegistrationContext, _Inout_ POB_PRE_OPERATION_INFORMATION PreInfo);
+
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Obj_GetObjectType)
+#pragma alloc_text (INIT, Obj_AddObjectType)
+#pragma alloc_text (INIT, Obj_Init)
+#endif // ALLOC_PRAGMA
+
+
 POBJECT_TYPE* Obj_ObjectTypes = NULL;
 BOOLEAN Obj_CallbackInstalled = FALSE;
 P_ObGetObjectType pObGetObjectType = NULL;
@@ -15,11 +29,7 @@ static P_ObRegisterCallbacks pObRegisterCallbacks = NULL;
 static P_ObUnRegisterCallbacks pObUnRegisterCallbacks = NULL;
 
 
-static OBJECT_TYPE* Obj_GetObjectType(const WCHAR* TypeName);
-static BOOLEAN Obj_AddObjectType(const WCHAR* TypeName);
-static BOOLEAN Obj_Init_Filter(void);
-static OB_PREOP_CALLBACK_STATUS Obj_PreOperationCallback(
-    _In_ PVOID RegistrationContext, _Inout_ POB_PRE_OPERATION_INFORMATION PreInfo);
+
 
 NTSTATUS Obj_GetName(POOL* pool, void* Object, OBJECT_NAME_INFORMATION** Name, ULONG* NameLength)
 {

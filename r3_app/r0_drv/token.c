@@ -45,6 +45,11 @@ P_SepFilterToken Token_SepFilterToken = NULL;
 
 static BOOLEAN Token_Init_SepFilterToken(void);
 
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Token_Init)
+#pragma alloc_text (INIT, Token_Init_SepFilterToken)
+#endif
+
 BOOLEAN Token_Init(void)
 {
 	const ULONG NumBasePrivs = 7;

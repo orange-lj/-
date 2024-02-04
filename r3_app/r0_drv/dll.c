@@ -2,6 +2,16 @@
 #include"../common/list.h"
 #include"../common/defines.h"
 #include"mem.h"
+
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Dll_Init)
+#pragma alloc_text (INIT, Dll_RvaToAddr)
+#pragma alloc_text (INIT, Dll_GetProc)
+#pragma alloc_text (INIT, Dll_GetNextProc)
+#endif // ALLOC_PRAGMA
+
+
 static LIST Dll_List;
 static BOOLEAN Dll_List_Initialized = FALSE;
 

@@ -24,6 +24,15 @@ static void Process_NotifyImage(
 static NTSTATUS Process_CreateUserProcess(
 	PROCESS* proc, SYSCALL_ENTRY* syscall_entry, ULONG_PTR* user_args);
 
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Process_Init)
+#ifdef XP_SUPPORT
+#ifndef _WIN64
+#pragma alloc_text (INIT, Process_HookProcessNotify)
+#endif _WIN64
+#endif
+#endif // ALLOC_PRAGMA
+
 BOOLEAN Process_Init(void)
 {
 	NTSTATUS status = STATUS_UNSUCCESSFUL;
@@ -212,6 +221,40 @@ void Process_GetProcessName(POOL* pool, ULONG_PTR idProcess, void** out_buf, ULO
 	ZwClose(handle);
 }
 
+PROCESS* Process_Find(HANDLE ProcessId, KIRQL* out_irql)
+{
+	PROCESS* proc;
+	KIRQL irql;
+	BOOLEAN check_terminated;
+
+	//如果我们正在查找当前进程，那么请检查执行模式，以确保它不是系统进程或内核模式调用者
+	if (!ProcessId) 
+	{
+	
+	}
+	else 
+	{
+		check_terminated = FALSE;
+	}
+	//查找与当前ProcessId匹配的PROCESS块
+	KeRaiseIrql(APC_LEVEL, &irql);
+	ExAcquireResourceSharedLite(Process_ListLock, TRUE);
+	proc = map_get(&Process_Map, ProcessId);
+	if (proc) 
+	{
+	
+	}
+	if (out_irql) 
+	{
+		*out_irql = irql;
+	}
+	else 
+	{
+	
+	}
+	return proc;
+}
+
 NTSTATUS Process_Low_Api_InjectComplete(PROCESS* proc, ULONG64* parms)
 {
 	//以后实现
@@ -220,12 +263,35 @@ NTSTATUS Process_Low_Api_InjectComplete(PROCESS* proc, ULONG64* parms)
 
 void Process_NotifyProcessEx(PEPROCESS ParentId, HANDLE ProcessId, PPS_CREATE_NOTIFY_INFO CreateInfo)
 {
-	//以后实现
+	//在init的主驱动程序说可以之前不要做任何事情
+	if (!Process_ReadyToSandbox) 
+	{
+		return;
+	}
+	//处理进程的创建和删除。请注意，我们在任意线程上下文中运行
+
 }
 
 void Process_NotifyImage(const UNICODE_STRING* FullImageName, HANDLE ProcessId, IMAGE_INFO* ImageInfo)
 {
-	//以后实现
+	static const WCHAR* _Ntdll32 = L"\\syswow64\\ntdll.dll";    // 19 chars
+	PROCESS* proc;
+	ULONG fail = 0;
+
+	//对于为任何目的映射的任何图像，都会调用Notify例程。我们不关心这里的系统映像
+	if ((!ProcessId) || ImageInfo->SystemModeImage)
+		return;
+	//如果进程是由process_NotifyProcess_Create分配的，但尚未完全初始化，则立即初始化它
+	proc = Process_Find(ProcessId, NULL);
+
+	if ((!proc) || proc->initialized) 
+	{
+		if (proc && (!proc->ntdll32_base)) 
+		{
+		
+		}
+		return;
+	}
 }
 
 NTSTATUS Process_CreateUserProcess(PROCESS* proc, SYSCALL_ENTRY* syscall_entry, ULONG_PTR* user_args)

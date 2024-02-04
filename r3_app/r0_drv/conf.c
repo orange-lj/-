@@ -45,20 +45,6 @@ typedef struct _CONF_SETTING {
 
 } CONF_SETTING;
 
-//变量
-static CONF_DATA Conf_Data;
-static PERESOURCE Conf_Lock = NULL;
-static LIST Conf_Users;
-static PERESOURCE Conf_Users_Lock = NULL;
-static KEVENT* Conf_Users_Event = NULL;
-
-static const WCHAR* Conf_GlobalSettings = L"GlobalSettings";
-static const WCHAR* Conf_UserSettings_ = L"UserSettings_";
-static const WCHAR* Conf_DefaultTemplates = L"DefaultTemplates";
-static const WCHAR* Conf_Template_ = L"Template_";
-
-static const WCHAR* Conf_Template = L"Template";
-const WCHAR* Conf_Tmpl = L"Tmpl.";
 
 static NTSTATUS Conf_Read(ULONG session_id);
 static NTSTATUS Conf_Api_SetUserName(PROCESS* proc, ULONG64* parms);
@@ -78,6 +64,27 @@ static NTSTATUS Conf_Merge_Global(
 static NTSTATUS Conf_Merge_Template(
 	CONF_DATA* data, ULONG session_id,
 	const WCHAR* tmpl_name, CONF_SECTION* section);
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Conf_Init)
+#endif // ALLOC_PRAGMA
+
+//变量
+static CONF_DATA Conf_Data;
+static PERESOURCE Conf_Lock = NULL;
+static LIST Conf_Users;
+static PERESOURCE Conf_Users_Lock = NULL;
+static KEVENT* Conf_Users_Event = NULL;
+
+static const WCHAR* Conf_GlobalSettings = L"GlobalSettings";
+static const WCHAR* Conf_UserSettings_ = L"UserSettings_";
+static const WCHAR* Conf_DefaultTemplates = L"DefaultTemplates";
+static const WCHAR* Conf_Template_ = L"Template_";
+
+static const WCHAR* Conf_Template = L"Template";
+const WCHAR* Conf_Tmpl = L"Tmpl.";
+
+
 
 BOOLEAN Conf_Init(void)
 {

@@ -4,7 +4,33 @@
 #include"log.h"
 #include"util.h"
 #include"alpc.h"
+#include"process.h"
 #include"../common/defines.h"
+
+static NTSTATUS Api_Irp_CREATE(DEVICE_OBJECT* device_object, IRP* irp);
+static NTSTATUS Api_Irp_Finish(IRP* irp, NTSTATUS status);
+static NTSTATUS Api_SetServicePort(PROCESS* proc, ULONG64* parms);
+
+static NTSTATUS Api_Irp_CLEANUP(DEVICE_OBJECT* device_object, IRP* irp);
+static NTSTATUS Api_GetVersion(PROCESS* proc, ULONG64* parms);
+static KIRQL Api_EnterCriticalSection(void);
+static void Api_LeaveCriticalSection(KIRQL oldirql);
+NTSTATUS Api_GetSecureParam(PROCESS* proc, ULONG64* parms);
+NTSTATUS KphVerifyBuffer(PUCHAR Buffer, ULONG BufferSize, PUCHAR Signature, ULONG SignatureSize);
+static NTSTATUS Api_GetMessage(PROCESS* proc, ULONG64* parms);
+static BOOLEAN Api_FastIo_DEVICE_CONTROL(
+	FILE_OBJECT* FileObject, BOOLEAN Wait,
+	void* InputBuffer, ULONG InputBufferLength,
+	void* OutputBuffer, ULONG OutputBufferLength,
+	ULONG IoControlCode, IO_STATUS_BLOCK* IoStatus,
+	DEVICE_OBJECT* DeviceObject);
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Api_Init)
+#pragma alloc_text (INIT, Api_SetFunction)
+#endif // ALLOC_PRAGMA
+
+
 static const WCHAR* Api_ParamPath = L"\\REGISTRY\\MACHINE\\SECURITY\\SBIE";
 static P_Api_Function* Api_Functions = NULL;
 static LOG_BUFFER* Api_LogBuffer = NULL;
@@ -17,16 +43,7 @@ static void* Api_ServicePortObject = NULL;
 
 volatile HANDLE Api_ServiceProcessId = NULL;
 
-static NTSTATUS Api_Irp_CREATE(DEVICE_OBJECT* device_object, IRP* irp);
-static NTSTATUS Api_SetServicePort(PROCESS* proc, ULONG64* parms);
 
-static NTSTATUS Api_Irp_CLEANUP(DEVICE_OBJECT* device_object, IRP* irp);
-static NTSTATUS Api_GetVersion(PROCESS* proc, ULONG64* parms);
-static KIRQL Api_EnterCriticalSection(void);
-static void Api_LeaveCriticalSection(KIRQL oldirql);
-NTSTATUS Api_GetSecureParam(PROCESS* proc, ULONG64* parms);
-NTSTATUS KphVerifyBuffer(PUCHAR Buffer, ULONG BufferSize, PUCHAR Signature, ULONG SignatureSize);
-static NTSTATUS Api_GetMessage(PROCESS* proc, ULONG64* parms);
 
 
 void Api_SetFunction(ULONG func_code, P_Api_Function func_ptr)
@@ -92,7 +109,7 @@ BOOLEAN Api_Init(void)
 	//Api_SetFunction(API_LOG_MESSAGE, Api_LogMessage);
 	Api_SetFunction(API_GET_MESSAGE, Api_GetMessage);
 	//Api_SetFunction(API_GET_HOME_PATH, Api_GetHomePath);
-	//Api_SetFunction(API_SET_SERVICE_PORT, Api_SetServicePort);
+	Api_SetFunction(API_SET_SERVICE_PORT, Api_SetServicePort);
 	//
 	//Api_SetFunction(API_UNLOAD_DRIVER, Driver_Api_Unload);
 	//
@@ -114,7 +131,6 @@ BOOLEAN Api_Init(void)
 
 BOOLEAN Api_FastIo_DEVICE_CONTROL(FILE_OBJECT* FileObject, BOOLEAN Wait, void* InputBuffer, ULONG InputBufferLength, void* OutputBuffer, ULONG OutputBufferLength, ULONG IoControlCode, IO_STATUS_BLOCK* IoStatus, DEVICE_OBJECT* DeviceObject)
 {
-	//以后完善
 	NTSTATUS status;
 	ULONG buf_len, func_code;
 	ULONG64* buf;
@@ -122,13 +138,105 @@ BOOLEAN Api_FastIo_DEVICE_CONTROL(FILE_OBJECT* FileObject, BOOLEAN Wait, void* I
 	PROCESS* proc;
 	P_Api_Function func_ptr;
 	BOOLEAN ApcsDisabled;
-	return STATUS_SUCCESS;
 
+	//内核模式下的SeFilterToken
+	if (ExGetPreviousMode() == KernelMode && IoControlCode == API_SBIEDRV_FILTERTOKEN_CTLCODE) 
+	{
+	
+	}
+	else if (ExGetPreviousMode() == KernelMode && IoControlCode == API_SBIEDRV_PFILTERTOKEN_CTLCODE) 
+	{
+	
+	}
+	//我们只在低irql下处理用户模式调用方的直接调用
+	IoStatus->Information = 0;
+	if (KeGetCurrentIrql() != PASSIVE_LEVEL
+		|| ExGetPreviousMode() != UserMode) {
+
+		IoStatus->Status = STATUS_INVALID_LEVEL;
+		return TRUE;
+	}
+	//获取指向用户缓冲区和长度的指针
+	buf = NULL;
+	if (IoControlCode == API_SBIEDRV_CTLCODE) 
+	{
+		buf_len = InputBufferLength;
+		if (buf_len >= sizeof(ULONG64)
+			&& buf_len <= sizeof(ULONG64) * API_NUM_ARGS)
+			buf = InputBuffer;
+	}
+	if (!buf) 
+	{
+		IoStatus->Status = STATUS_INVALID_DEVICE_REQUEST;
+		return TRUE;
+	}
+	//查找调用过程
+	ApcsDisabled = KeAreApcsDisabled();
+	if (PsGetCurrentProcessId() == Api_ServiceProcessId)
+		proc = NULL;
+	else 
+	{
+		proc = Process_Find(NULL, NULL);
+		if (proc == PROCESS_TERMINATED) 
+		{
+			IoStatus->Status = STATUS_PROCESS_IS_TERMINATING;
+			return TRUE;
+		}
+	}
+	//捕获参数和调用函数
+	func_code = 0;
+	func_ptr = NULL;
+	__try 
+	{
+		ProbeForRead(
+			buf, sizeof(ULONG64) * API_NUM_ARGS, sizeof(ULONG64));
+
+		memzero(user_args, sizeof(ULONG64) * API_NUM_ARGS);
+		memcpy(user_args, buf, buf_len);
+
+		func_code = (ULONG)user_args[0];
+
+		if (func_code > API_FIRST && func_code < API_LAST)
+			func_ptr = Api_Functions[func_code - API_FIRST - 1];
+
+		if (func_ptr) 
+		{
+			status = func_ptr(proc, user_args);
+		}
+		else
+			status = STATUS_INVALID_DEVICE_REQUEST;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) 
+	{
+		status = GetExceptionCode();
+	}
+	IoStatus->Status = status;
+	return STATUS_SUCCESS;
 }
 
 NTSTATUS Api_Irp_CREATE(DEVICE_OBJECT* device_object, IRP* irp)
 {
-	return STATUS_SUCCESS;
+	NTSTATUS status;
+	KIRQL irql = Api_EnterCriticalSection();
+
+	if (Api_UseCount == -1)
+		status = Api_Irp_Finish(irp, STATUS_NOT_SUPPORTED);
+	else {
+		InterlockedIncrement(&Api_UseCount);
+		status = Api_Irp_Finish(irp, STATUS_SUCCESS);
+	}
+
+	Api_LeaveCriticalSection(irql);
+	return status;
+}
+
+NTSTATUS Api_Irp_Finish(IRP* irp, NTSTATUS status)
+{
+	irp->IoStatus.Status = status;
+	irp->IoStatus.Information = 0;
+	IoCompleteRequest(irp, IO_NO_INCREMENT);
+
+	return status;
 }
 
 NTSTATUS Api_Irp_CLEANUP(DEVICE_OBJECT* device_object, IRP* irp)

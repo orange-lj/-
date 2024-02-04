@@ -3,6 +3,18 @@
 #include"util.h"
 #include"api.h"
 #include"process.h"
+
+static NTSTATUS Gui_Api_Init(PROCESS* proc, ULONG64* parms);
+static NTSTATUS Gui_Api_Clipboard(PROCESS* proc, ULONG64* parms);
+static void Gui_InitClipboard();
+static void Gui_FixClipboard(ULONG integrity);
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Gui_Init)
+#endif // ALLOC_PRAGMA
+
+
+
 typedef struct _GUI_CLIPBOARD {
     ULONG* items;
     ULONG count;
@@ -12,10 +24,6 @@ static ULONG Gui_ClipboardItemLength = 0;
 static ULONG Gui_ClipboardIntegrityIndex = 0;
 
 
-static NTSTATUS Gui_Api_Init(PROCESS* proc, ULONG64* parms);
-static NTSTATUS Gui_Api_Clipboard(PROCESS* proc, ULONG64* parms);
-static void Gui_InitClipboard();
-static void Gui_FixClipboard(ULONG integrity);
 
 
 BOOLEAN Gui_Init(void)

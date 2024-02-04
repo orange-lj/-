@@ -42,12 +42,12 @@ static NTSTATUS Syscall_Api_Invoke(PROCESS* proc, ULONG64* parms);
 #pragma alloc_text (INIT, Syscall_Init_List)
 #pragma alloc_text (INIT, Syscall_Init_Table)
 #pragma alloc_text (INIT, Syscall_Init_ServiceData)
-//#pragma alloc_text (INIT, Syscall_Set1)
-//#pragma alloc_text (INIT, Syscall_Set2)
+#pragma alloc_text (INIT, Syscall_Set1)
+#pragma alloc_text (INIT, Syscall_Set2)
 //#pragma alloc_text (INIT, Syscall_ErrorForAsciiName)
-//#pragma alloc_text (INIT, Syscall_GetIndexFromNtdll)
-//#pragma alloc_text (INIT, Syscall_GetKernelAddr)
-//#pragma alloc_text (INIT, Syscall_GetServiceTable)
+#pragma alloc_text (INIT, Syscall_GetIndexFromNtdll)
+#pragma alloc_text (INIT, Syscall_GetKernelAddr)
+#pragma alloc_text (INIT, Syscall_GetServiceTable)
 #endif // ALLOC_PRAGMA
 
 //±‰¡ø

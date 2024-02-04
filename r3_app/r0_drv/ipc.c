@@ -4,6 +4,23 @@
 #include"conf.h"
 #include"obj.h"
 
+static BOOLEAN Ipc_Init_Type(
+    const WCHAR* TypeName, P_Syscall_Handler2 handler, ULONG createEx);
+static NTSTATUS Ipc_CheckGenericObject(
+    PROCESS* proc, void* Object, UNICODE_STRING* Name,
+    ULONG Operation, ACCESS_MASK GrantedAccess);
+static NTSTATUS Ipc_CheckPortObject(
+    PROCESS* proc, void* Object, UNICODE_STRING* Name,
+    ULONG Operation, ACCESS_MASK GrantedAccess);
+static NTSTATUS Ipc_CheckJobObject(
+    PROCESS* proc, void* Object, UNICODE_STRING* Name,
+    ULONG Operation, ACCESS_MASK GrantedAccess);
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Ipc_Init)
+#pragma alloc_text (INIT, Ipc_Init_Type)
+#endif // ALLOC_PRAGMA
+
 static const WCHAR* Ipc_Event_TypeName = L"Event";
 static const WCHAR* Ipc_EventPair_TypeName = L"EventPair";
 static const WCHAR* Ipc_KeyedEvent_TypeName = L"KeyedEvent";
@@ -18,17 +35,6 @@ static LIST Ipc_ObjDirs;
 IPC_DYNAMIC_PORTS Ipc_Dynamic_Ports;
 
 
-static BOOLEAN Ipc_Init_Type(
-    const WCHAR* TypeName, P_Syscall_Handler2 handler, ULONG createEx);
-static NTSTATUS Ipc_CheckGenericObject(
-    PROCESS* proc, void* Object, UNICODE_STRING* Name,
-    ULONG Operation, ACCESS_MASK GrantedAccess);
-static NTSTATUS Ipc_CheckPortObject(
-    PROCESS* proc, void* Object, UNICODE_STRING* Name,
-    ULONG Operation, ACCESS_MASK GrantedAccess);
-static NTSTATUS Ipc_CheckJobObject(
-    PROCESS* proc, void* Object, UNICODE_STRING* Name,
-    ULONG Operation, ACCESS_MASK GrantedAccess);
 
 BOOLEAN Ipc_Init(void)
 {

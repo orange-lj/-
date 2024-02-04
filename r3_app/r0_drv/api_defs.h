@@ -4,8 +4,10 @@
 
 #define API_SBIEDRV_CTLCODE \
     CTL_CODE(FILE_DEVICE_UNKNOWN, 0x801, METHOD_NEITHER, FILE_ANY_ACCESS)
-
-
+#define API_SBIEDRV_FILTERTOKEN_CTLCODE \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, 0x802, METHOD_BUFFERED, FILE_ANY_ACCESS)  // call SeFilterToken in kernel mode
+#define API_SBIEDRV_PFILTERTOKEN_CTLCODE \
+    CTL_CODE(FILE_DEVICE_UNKNOWN, 0x803, METHOD_BUFFERED, FILE_ANY_ACCESS)  // call SepFilterToken in kernel mode
 #define API_ARGS_BEGIN(x)	typedef struct _##x {ULONG64 func_code;
 #define API_ARGS_FIELD(t,m)	union{ULONG64 val64; t val; } m;
 #define API_ARGS_CLOSE(x)	} x;

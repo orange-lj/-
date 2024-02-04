@@ -1,4 +1,5 @@
 #include "thread.h"
+#include"process.h"
 #include"syscall.h"
 #include"api.h"
 #include"../common/ntproto.h"
@@ -8,6 +9,11 @@ static BOOLEAN Thread_NotifyInstalled = FALSE;
 
 static void Thread_Notify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create);
 static void Thread_InitAnonymousToken(void);
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Thread_Init)
+#pragma alloc_text (INIT, Thread_InitAnonymousToken)
+#endif // ALLOC_PRAGMA
 
 BOOLEAN Thread_Init(void)
 {
@@ -76,7 +82,22 @@ BOOLEAN Thread_Init(void)
 
 void Thread_Notify(HANDLE ProcessId, HANDLE ThreadId, BOOLEAN Create)
 {
-    //以后实现
+    void* TokenObject = NULL;
+    PROCESS* proc = NULL;
+    THREAD* thrd = NULL;
+    KIRQL irql;
+
+    proc = Process_Find(ProcessId, &irql);
+    if (proc && proc->threads_lock) 
+    {
+    
+    }
+    ExReleaseResourceLite(Process_ListLock);
+    KeLowerIrql(irql);
+    if (TokenObject) 
+    {
+        ObDereferenceObject(TokenObject);
+    }
 }
 
 void Thread_InitAnonymousToken(void)

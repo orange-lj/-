@@ -1,13 +1,18 @@
 #include "key.h"
 #include"mem.h"
 
+static BOOLEAN Key_Init_Filter(void);
+static NTSTATUS Key_Callback(void* Context, void* Arg1, void* Arg2);
+
+#ifdef ALLOC_PRAGMA
+#pragma alloc_text (INIT, Key_Init)
+#endif // ALLOC_PRAGMA
+
 static LIST Key_Mounts;
 static PERESOURCE Key_MountsLock = NULL;
 static LARGE_INTEGER Key_Cookie;
 static BOOLEAN Key_CallbackInstalled = FALSE;
 
-static BOOLEAN Key_Init_Filter(void);
-static NTSTATUS Key_Callback(void* Context, void* Arg1, void* Arg2);
 
 
 BOOLEAN Key_Init(void)
