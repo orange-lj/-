@@ -21,7 +21,12 @@ NTSTATUS SbieDll_ConnectPort()
             NULL, NULL, &data->MaxDataLen, NULL, NULL);
         if (!NT_SUCCESS(status))
             return status;
+        NtRegisterThreadTerminatePort(data->PortHandle);
+        //¼ÆËã³ß´çºÍÆ«ÒÆ
+        data->SizeofPortMsg = sizeof(PORT_MESSAGE);
+        data->MaxDataLen -= data->SizeofPortMsg;
     }
+    return STATUS_SUCCESS;
 }
 
 

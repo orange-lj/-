@@ -186,6 +186,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\common\my_version.h" />
+    <ClInclude Include="..\r0_drv\Boxes.h" />
+    <ClInclude Include="Box.h" />
+    <ClInclude Include="BoxProc.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="InitWait.h" />
     <ClInclude Include="MyMsg.h" />
@@ -196,6 +199,9 @@
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\r0_drv\Boxes.cpp" />
+    <ClCompile Include="Box.cpp" />
+    <ClCompile Include="BoxProc.cpp" />
     <ClCompile Include="InitWait.cpp" />
     <ClCompile Include="MyMsg.cpp" />
     <ClCompile Include="pch.cpp">

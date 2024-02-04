@@ -71,10 +71,14 @@ void CInitWait::GetVersions()
 
 void CInitWait::OnTimer(UINT_PTR nIDEvent)
 {
+	if (!temp) 
+	{
+		return;
+	}
 	GetVersions();
 	if (m_svc_abi == MY_ABI_VERSION && m_drv_abi == MY_ABI_VERSION) 
 	{
-	
+		temp = false;
 	}
 	else if (m_try_elevate) 
 	{
@@ -110,7 +114,7 @@ CInitWait::CInitWait(CWinApp* myApp)
 	SbieDll_StartSbieSvc(FALSE);
 
 	//临时消息循环，直到我们初始化
-	while (1) 
+	while (temp) 
 	{
 		MSG msg;
 		BOOL b = ::GetMessage(&msg, NULL, 0, 0);

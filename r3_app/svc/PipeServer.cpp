@@ -162,6 +162,25 @@ ULONG PipeServer::GetCallerSessionId()
     return SessionId;
 }
 
+ULONG PipeServer::ImpersonateCaller(MSG_HEADER** pmsg)
+{
+    ULONG status;
+    CLIENT_TLS_DATA* TlsData =
+        (CLIENT_TLS_DATA*)TlsGetValue(m_instance->m_TlsIndex);
+    if (TlsData->PortHandle) 
+    {
+        status = NtImpersonateClientOfPort(
+            TlsData->PortHandle, TlsData->PortMessage);
+        if ((!NT_SUCCESS(status)) && pmsg)
+            *pmsg = m_instance->AllocShortMsg(status);
+    }
+    else 
+    {
+        status = STATUS_SUCCESS;
+    }
+    return status;
+}
+
 PipeServer::PipeServer()
 {
     InitializeCriticalSectionAndSpinCount(&m_lock, 1000);
@@ -239,7 +258,7 @@ void PipeServer::Thread(void)
         }
         if (msg->u2.s2.Type == LPC_CONNECTION_REQUEST) 
         {
-            //PortConnect(msg);
+            PortConnect(msg);
         }
         else if (msg->u2.s2.Type == LPC_REQUEST) 
         {
@@ -267,6 +286,89 @@ void PipeServer::Thread(void)
             //以后实现
         }
     }
+}
+
+void PipeServer::PortConnect(PORT_MESSAGE* msg)
+{
+    NTSTATUS status;
+    CLIENT_PROCESS* clientProcess;
+    CLIENT_THREAD* clientThread;
+    //查找到同一客户端以前的连接，或创建一个新的
+    EnterCriticalSection(&m_lock);
+
+    PortFindClientUnsafe(msg->ClientId, clientProcess, clientThread);
+    //在需要的地方创建新的进程和线程结构
+    if (!clientProcess) 
+    {
+        clientProcess =
+            (CLIENT_PROCESS*)Pool_Alloc(m_pool, sizeof(CLIENT_PROCESS));
+        if (clientProcess) 
+        {
+            clientProcess->idProcess = msg->ClientId.UniqueProcess;
+            map_init(&clientProcess->thread_map, m_pool);
+            map_resize(&clientProcess->thread_map, 16); // prepare some buckets for better performance
+
+            map_insert(&m_client_map, msg->ClientId.UniqueProcess, clientProcess, 0);
+            //为断开连接消息仅指定进程创建时间的情况做好准备：记录进程创建时间，以便以后使用
+            clientProcess->CreateTime.HighPart = 0;
+            clientProcess->CreateTime.LowPart = 0;
+            HANDLE hProcess = OpenProcess(
+                PROCESS_QUERY_INFORMATION, FALSE,
+                (ULONG)(ULONG_PTR)msg->ClientId.UniqueProcess);
+            if (hProcess) {
+                FILETIME time, time1, time2, time3;
+                BOOL ok = GetProcessTimes(
+                    hProcess, &time, &time1, &time2, &time3);
+                if (ok) {
+                    clientProcess->CreateTime.HighPart = time.dwHighDateTime;
+                    clientProcess->CreateTime.LowPart = time.dwLowDateTime;
+                }
+                CloseHandle(hProcess);
+            }
+        }
+    }
+    if (clientProcess && (!clientThread)) 
+    {
+        clientThread =
+            (CLIENT_THREAD*)Pool_Alloc(m_pool, sizeof(CLIENT_THREAD));
+        if (clientThread) 
+        {
+            memset(clientThread, 0, sizeof(CLIENT_THREAD));
+            clientThread->idThread = msg->ClientId.UniqueThread;
+            map_insert(&clientProcess->thread_map, msg->ClientId.UniqueThread, clientThread, 0);
+        }
+    }
+    //如果无法创建新连接（内存不足），请拒绝新连接
+    if (!clientThread) 
+    {
+        HANDLE hPort;
+        NtAcceptConnectPort(&hPort, NULL, msg, FALSE, NULL, NULL);
+        LeaveCriticalSection(&m_lock);
+        return;
+    }
+    //如果找到以前的连接，请关闭它
+    if (clientThread->hPort) 
+    {
+        while (clientThread->in_use)
+            Sleep(3);
+        NtClose(clientThread->hPort);
+        if (clientThread->buf_hdr)
+            FreeMsg(clientThread->buf_hdr);
+        clientThread->replying = FALSE;
+        clientThread->in_use = FALSE;
+        clientThread->sequence = 0;
+        clientThread->hPort = NULL;
+        clientThread->buf_hdr = NULL;
+        clientThread->buf_ptr = NULL;
+    }
+    //如果创建了新的客户端结构，则接受连接
+    status = NtAcceptConnectPort(
+        &clientThread->hPort, NULL, msg, TRUE, NULL, NULL);
+
+    if (NT_SUCCESS(status))
+        status = NtCompleteConnectPort(clientThread->hPort);
+
+    LeaveCriticalSection(&m_lock);
 }
 
 void PipeServer::PortRequest(HANDLE PortHandle, PORT_MESSAGE* msg, void* voidClient)

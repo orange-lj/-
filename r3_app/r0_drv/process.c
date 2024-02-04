@@ -76,7 +76,7 @@ BOOLEAN Process_Init(void)
 		return FALSE;
 
 	//Api_SetFunction(API_START_PROCESS, Process_Api_Start);
-	//Api_SetFunction(API_QUERY_PROCESS, Process_Api_Query);
+	Api_SetFunction(API_QUERY_PROCESS, Process_Api_Query);
 	//Api_SetFunction(API_QUERY_PROCESS_INFO, Process_Api_QueryInfo);
 	//Api_SetFunction(API_QUERY_BOX_PATH, Process_Api_QueryBoxPath);
 	//Api_SetFunction(API_QUERY_PROCESS_PATH, Process_Api_QueryProcessPath);
@@ -84,6 +84,42 @@ BOOLEAN Process_Init(void)
 	//Api_SetFunction(API_ENUM_PROCESSES, Process_Api_Enum);
 
 	return TRUE;
+}
+
+NTSTATUS Process_Api_Query(PROCESS* proc, ULONG64* parms)
+{
+	API_QUERY_PROCESS_ARGS* args = (API_QUERY_PROCESS_ARGS*)parms;
+	NTSTATUS status;
+	HANDLE ProcessId;
+	ULONG* num32;
+	ULONG64* num64;
+	KIRQL irql;
+
+	//这是SbieDll第一次调用SbieApi
+	if (proc && !proc->sbiedll_loaded) 
+	{
+	
+	}
+	//如果指定了ProcessId，则定位并锁定匹配的进程。如果调用方不是沙盒，则必须指定ProcessId
+	ProcessId = args->process_id.val;
+	if (proc) {
+		if (ProcessId == proc->pid || IS_ARG_CURRENT_PROCESS(ProcessId))
+			ProcessId = 0;  // don't have to search for the current pid
+	}
+	else {
+		if ((!ProcessId) || IS_ARG_CURRENT_PROCESS(ProcessId))
+			return STATUS_INVALID_CID;
+	}
+	if (ProcessId) 
+	{
+		proc = Process_Find(ProcessId, &irql);
+		if (!proc) {
+			ExReleaseResourceLite(Process_ListLock);
+			KeLowerIrql(irql);
+			return STATUS_INVALID_CID;
+		}
+	}
+
 }
 
 BOOLEAN Process_Low_Init(void)

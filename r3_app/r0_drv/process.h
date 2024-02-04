@@ -181,6 +181,8 @@ struct _PROCESS {
 
 BOOLEAN Process_Init(void);
 
+NTSTATUS Process_Api_Query(PROCESS* proc, ULONG64* parms);
+
 //低层系统接口（process_low.c）
 BOOLEAN Process_Low_Init(void);
 
@@ -203,5 +205,7 @@ void Process_GetProcessName(
 //如果ProcessId为NULL，则返回当前沙盒进程。
 //如果ProcessId为NULL且当前沙箱进程计划为终止，则返回值将终止
 PROCESS* Process_Find(HANDLE ProcessId, KIRQL* out_irql);
+
+
 
 extern PERESOURCE Process_ListLock;

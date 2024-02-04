@@ -111,6 +111,7 @@
     <ClCompile Include="..\common\pool.c" />
     <ClCompile Include="..\common\stream.c" />
     <ClCompile Include="api.c" />
+    <ClCompile Include="box.c" />
     <ClCompile Include="conf.c" />
     <ClCompile Include="dll.c" />
     <ClCompile Include="file.c" />
@@ -144,6 +145,7 @@
     <ClInclude Include="api.h" />
     <ClInclude Include="api_defs.h" />
     <ClInclude Include="api_flags.h" />
+    <ClInclude Include="box.h" />
     <ClInclude Include="conf.h" />
     <ClInclude Include="dll.h" />
     <ClInclude Include="file.h" />

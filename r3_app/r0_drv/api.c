@@ -5,6 +5,7 @@
 #include"util.h"
 #include"alpc.h"
 #include"process.h"
+#include"box.h"
 #include"../common/defines.h"
 
 static NTSTATUS Api_Irp_CREATE(DEVICE_OBJECT* device_object, IRP* irp);
@@ -13,6 +14,7 @@ static NTSTATUS Api_SetServicePort(PROCESS* proc, ULONG64* parms);
 
 static NTSTATUS Api_Irp_CLEANUP(DEVICE_OBJECT* device_object, IRP* irp);
 static NTSTATUS Api_GetVersion(PROCESS* proc, ULONG64* parms);
+static NTSTATUS Api_GetHomePath(PROCESS* proc, ULONG64* parms);
 static KIRQL Api_EnterCriticalSection(void);
 static void Api_LeaveCriticalSection(KIRQL oldirql);
 NTSTATUS Api_GetSecureParam(PROCESS* proc, ULONG64* parms);
@@ -108,7 +110,7 @@ BOOLEAN Api_Init(void)
 	////Api_SetFunction(API_GET_WORK,           Api_GetWork);
 	//Api_SetFunction(API_LOG_MESSAGE, Api_LogMessage);
 	Api_SetFunction(API_GET_MESSAGE, Api_GetMessage);
-	//Api_SetFunction(API_GET_HOME_PATH, Api_GetHomePath);
+	Api_SetFunction(API_GET_HOME_PATH, Api_GetHomePath);
 	Api_SetFunction(API_SET_SERVICE_PORT, Api_SetServicePort);
 	//
 	//Api_SetFunction(API_UNLOAD_DRIVER, Driver_Api_Unload);
@@ -127,6 +129,41 @@ BOOLEAN Api_Init(void)
 	InterlockedExchange(&Api_UseCount, 0);
 
 	return TRUE;
+}
+
+void Api_CopyStringToUser(UNICODE_STRING64* uni, WCHAR* str, size_t len)
+{
+	if (uni) {
+		ProbeForRead(uni, sizeof(UNICODE_STRING64), sizeof(ULONG_PTR));
+		ProbeForWrite(uni, sizeof(UNICODE_STRING64), sizeof(ULONG_PTR));
+		if (len > uni->MaximumLength)
+			ExRaiseStatus(STATUS_BUFFER_TOO_SMALL);
+		else {
+			WCHAR* buf = (WCHAR*)uni->Buffer;
+			ProbeForWrite(buf, len, sizeof(WCHAR));
+			if (len) {
+				memcpy(buf, str, len);
+				uni->Length = (USHORT)len - sizeof(WCHAR);
+			}
+			else
+				uni->Length = 0;
+		}
+	}
+}
+
+BOOLEAN Api_CopyBoxNameFromUser(WCHAR* boxname34, const WCHAR* user_boxname)
+{
+	wmemzero(boxname34, BOXNAME_COUNT);
+	if (user_boxname) {
+		ProbeForRead((WCHAR*)user_boxname,
+			sizeof(WCHAR) * (BOXNAME_COUNT - 2),
+			sizeof(UCHAR));
+		if (user_boxname[0])
+			wcsncpy(boxname34, user_boxname, (BOXNAME_COUNT - 2));
+	}
+	if (boxname34[0] && Box_IsValidName(boxname34))
+		return TRUE;
+	return FALSE;
 }
 
 BOOLEAN Api_FastIo_DEVICE_CONTROL(FILE_OBJECT* FileObject, BOOLEAN Wait, void* InputBuffer, ULONG InputBufferLength, void* OutputBuffer, ULONG OutputBufferLength, ULONG IoControlCode, IO_STATUS_BLOCK* IoStatus, DEVICE_OBJECT* DeviceObject)
@@ -248,14 +285,42 @@ NTSTATUS Api_GetVersion(PROCESS* proc, ULONG64* parms)
 {
 	API_GET_VERSION_ARGS* args = (API_GET_VERSION_ARGS*)parms;
 	if (args->string.val != NULL) {
-		//size_t len = (wcslen(Driver_Version) + 1) * sizeof(WCHAR);
-		//ProbeForWrite(args->string.val, len, sizeof(WCHAR));
-		//memcpy(args->string.val, Driver_Version, len);
+		size_t len = (wcslen(Driver_Version) + 1) * sizeof(WCHAR);
+		ProbeForWrite(args->string.val, len, sizeof(WCHAR));
+		memcpy(args->string.val, Driver_Version, len);
 	}
 
 	if (args->abi_ver.val != NULL) {
 		ProbeForWrite(args->abi_ver.val, sizeof(ULONG), sizeof(ULONG));
 		*args->abi_ver.val = MY_ABI_VERSION;
+	}
+
+	return STATUS_SUCCESS;
+}
+
+NTSTATUS Api_GetHomePath(PROCESS* proc, ULONG64* parms)
+{
+	API_GET_HOME_PATH_ARGS* args = (API_GET_HOME_PATH_ARGS*)parms;
+	UNICODE_STRING64* user_uni;
+	WCHAR* ptr;
+	size_t len;
+
+	user_uni = args->nt_path.val;
+	if (user_uni) 
+	{
+		ptr = Driver_HomePathNt;
+		len = (wcslen(ptr) + 1) * sizeof(WCHAR);
+		Api_CopyStringToUser(user_uni, ptr, len);
+	}
+
+	user_uni = args->dos_path.val;
+	if (user_uni) 
+	{
+		ptr = Driver_HomePathDos;
+		if (wcsncmp(ptr, L"\\??\\", 4) == 0)
+			ptr += 4;
+		len = (wcslen(ptr) + 1) * sizeof(WCHAR);
+		Api_CopyStringToUser(user_uni, ptr, len);
 	}
 
 	return STATUS_SUCCESS;

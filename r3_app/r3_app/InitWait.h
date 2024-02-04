@@ -1,5 +1,7 @@
 #pragma once
 #include"r3_appDlg.h"
+
+bool temp = true;
 class CInitWait :public CWnd
 {
 	DECLARE_MESSAGE_MAP()

@@ -28,3 +28,15 @@ static const WCHAR* Conf_Get_Helper(
 //Conf_Get_Boolean：解析y/n设置。该函数不必使用Conf_AdjustUseCount进行保护
 BOOLEAN Conf_Get_Boolean(
     const WCHAR* section, const WCHAR* setting, ULONG index, BOOLEAN def);
+
+//Conf_IsValidBox：为有效且已定义的框节返回STATUS_SUCCESS。如果节未定义框，则返回STATUS_OBJECT_TYPE_MISMATCH。
+//如果节不存在，则返回STATUS_OBJECT_NAME_NOT_FOUD。
+NTSTATUS Conf_IsValidBox(const WCHAR* section_name);
+
+
+BOOLEAN Conf_IsBoxEnabled(
+    const WCHAR* BoxName, const WCHAR* SidString, ULONG SessionId);
+
+
+static BOOLEAN Conf_GetUserNameForSid(
+    const WCHAR* SidString, ULONG SessionId, WCHAR* varvalue);

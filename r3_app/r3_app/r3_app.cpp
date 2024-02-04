@@ -167,6 +167,12 @@ BOOL Cr3appApp::InitInstance()
 	//接任Sandboxie会话负责人
 	SbieApi_SessionLeader(0, NULL);
 
+
+	//接任Sandboxie会议负责人
+	SbieApi_SessionLeader(0, NULL);
+
+
+
 	//Cr3appDlg dlg;
 	//m_pMainWnd = &dlg;
 	//INT_PTR nResponse = dlg.DoModal();

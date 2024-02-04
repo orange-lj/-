@@ -7,6 +7,7 @@
 #include"api.h"
 #include"util.h"
 #include"api_flags.h"
+#include"process.h"
 
 //defines
 	//与sbeiniwire保持同步
@@ -46,6 +47,17 @@ typedef struct _CONF_SETTING {
 } CONF_SETTING;
 
 
+typedef struct _CONF_USER 
+{
+	LIST_ELEM list_elem;
+	ULONG len;
+	ULONG sid_len;
+	ULONG name_len;
+	WCHAR* sid;
+	WCHAR* name;
+	WCHAR space[1];
+} CONF_USER;
+
 static NTSTATUS Conf_Read(ULONG session_id);
 static NTSTATUS Conf_Api_SetUserName(PROCESS* proc, ULONG64* parms);
 static NTSTATUS Conf_Api_IsBoxEnabled(PROCESS* proc, ULONG64* parms);
@@ -79,6 +91,7 @@ static KEVENT* Conf_Users_Event = NULL;
 static const WCHAR* Conf_GlobalSettings = L"GlobalSettings";
 static const WCHAR* Conf_UserSettings_ = L"UserSettings_";
 static const WCHAR* Conf_DefaultTemplates = L"DefaultTemplates";
+const WCHAR* Conf_TemplateSettings = L"TemplateSettings";
 static const WCHAR* Conf_Template_ = L"Template_";
 
 static const WCHAR* Conf_Template = L"Template";
@@ -136,8 +149,98 @@ NTSTATUS Conf_Api_Reload(PROCESS* proc, ULONG64* parms)
 
 NTSTATUS Conf_Api_Query(PROCESS* proc, ULONG64* parms)
 {
-	//下次完善
-	return STATUS_SUCCESS;
+	NTSTATUS status;
+	WCHAR* parm;
+	ULONG* parm2;
+	WCHAR boxname[70];
+	WCHAR setting[70];
+	ULONG index;
+	const WCHAR* value1;
+	WCHAR* value2;
+
+	//
+	// 准备参数
+	// 
+
+	// parms[1] --> WCHAR [66] SectionName
+	memzero(boxname, sizeof(boxname));
+	if (proc) 
+	{
+		//wcscpy(boxname, proc->box->name);
+	}
+	else 
+	{
+		parm = (WCHAR*)parms[1];
+		if (parm) {
+			ProbeForRead(parm, sizeof(WCHAR) * 64, sizeof(WCHAR));
+			if (parm[0])
+				wcsncpy(boxname, parm, 64);
+		}
+	}
+	// parms[2] --> WCHAR [66] SettingName
+
+	memzero(setting, sizeof(setting));
+	parm = (WCHAR*)parms[2];
+	if (parm) 
+	{
+		ProbeForRead(parm, sizeof(WCHAR) * 64, sizeof(WCHAR));
+		if (parm[0])
+			wcsncpy(setting, parm, 64);
+	}
+	// parms[3] --> ULONG SettingIndex
+
+	index = 0;
+	parm2 = (ULONG*)parms[3];
+	if (parm2) {
+		ProbeForRead(parm2, sizeof(ULONG), sizeof(ULONG));
+		index = *parm2;
+		if ((index & 0xFFFF) > 1000)
+			return STATUS_INVALID_PARAMETER;
+	}
+	else
+		return STATUS_INVALID_PARAMETER;
+	//获取值
+	Conf_AdjustUseCount(TRUE);
+
+	if ((setting && setting[0] == L'%') || (index & CONF_JUST_EXPAND))
+		value1 = setting; // shortcut to expand a variable
+	else
+		value1 = Conf_Get(boxname, setting, index);
+	if (!value1) {
+		status = STATUS_RESOURCE_NAME_NOT_FOUND;
+		goto release_and_return;
+	}
+	if (index & CONF_GET_NO_EXPAND) 
+	{
+		value2 = (WCHAR*)value1;
+	}
+	else 
+	{
+	
+	}
+	// parms[4] --> user buffer Output
+
+	__try {
+
+		UNICODE_STRING64* user_uni = (UNICODE_STRING64*)parms[4];
+		ULONG len = (wcslen(value2) + 1) * sizeof(WCHAR);
+		Api_CopyStringToUser(user_uni, value2, len);
+
+		status = STATUS_SUCCESS;
+
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		status = GetExceptionCode();
+	}
+	if (value2 != value1)
+		Mem_FreeString(value2);
+
+release_and_return:
+
+	Conf_AdjustUseCount(FALSE);
+
+	return status;
+
 }
 
 void Conf_AdjustUseCount(BOOLEAN increase)
@@ -249,6 +352,123 @@ BOOLEAN Conf_Get_Boolean(const WCHAR* section, const WCHAR* setting, ULONG index
 	}
 	Conf_AdjustUseCount(FALSE);
 	return retval;
+}
+
+NTSTATUS Conf_IsValidBox(const WCHAR* section_name)
+{
+	CONF_SECTION* section;
+	NTSTATUS status;
+	KIRQL irql;
+
+	if (_wcsicmp(section_name, Conf_GlobalSettings) == 0
+		|| _wcsicmp(section_name, Conf_TemplateSettings) == 0
+		|| _wcsnicmp(section_name, Conf_Template_, 9) == 0
+		|| _wcsnicmp(section_name, Conf_UserSettings_, 13) == 0) {
+
+		status = STATUS_OBJECT_TYPE_MISMATCH;
+
+	}
+	else {
+
+		KeRaiseIrql(APC_LEVEL, &irql);
+		ExAcquireResourceSharedLite(Conf_Lock, TRUE);
+
+		section = List_Head(&Conf_Data.sections);
+		while (section) {
+			if (_wcsicmp(section->name, section_name) == 0)
+				break;
+			section = List_Next(section);
+		}
+
+		if (!section)
+			status = STATUS_OBJECT_NAME_NOT_FOUND;
+
+		else if (section->from_template)
+			status = STATUS_OBJECT_TYPE_MISMATCH;
+
+		else
+			status = STATUS_SUCCESS;
+
+		ExReleaseResourceLite(Conf_Lock);
+		KeLowerIrql(irql);
+	}
+
+	return status;
+}
+
+BOOLEAN Conf_IsBoxEnabled(const WCHAR* BoxName, const WCHAR* SidString, ULONG SessionId)
+{
+	const WCHAR* value;
+	WCHAR* buffer;
+	BOOLEAN enabled;
+
+	//
+	// expect setting  Enabled=y,
+	// and potentially Enabled=y,user1,user2,...
+	//
+
+	enabled = FALSE;
+
+	Conf_AdjustUseCount(TRUE);
+
+	value = Conf_Get(BoxName, L"Enabled", CONF_GET_NO_GLOBAL);
+	if ((!value) || (*value != L'y' && *value != L'Y'))
+		goto release_and_return;
+
+	value = wcschr(value, L',');
+	if (!value) {
+		enabled = TRUE;
+		goto release_and_return;
+	}
+
+	//
+	// 检查用户名或任何组名是否显示在“已启用”设置中
+	//
+
+	/*buffer = ExAllocatePoolWithTag(PagedPool, PAGE_SIZE, tzuk);
+	if (buffer) {
+
+		if (Conf_GetUserNameForSid(SidString, SessionId, buffer)) {
+
+			if (Conf_FindUserName(buffer, value))
+				enabled = TRUE;
+
+			else if (Conf_GetGroupsForSid(buffer, SessionId)) {
+
+				WCHAR* group = buffer;
+				while (*group) {
+
+					if (Conf_FindUserName(group, value)) {
+						enabled = TRUE;
+						break;
+					}
+
+					group += wcslen(group) + 1;
+				}
+			}
+		}
+
+		ExFreePoolWithTag(buffer, tzuk);
+	}*/
+
+release_and_return:
+
+	Conf_AdjustUseCount(FALSE);
+
+	return enabled;
+}
+
+BOOLEAN Conf_GetUserNameForSid(const WCHAR* SidString, ULONG SessionId, WCHAR* varvalue)
+{
+	/*static const WCHAR* _unknown = L"unknown";
+	ULONG sid_len;
+	ULONG retries;
+	BOOLEAN message_sent;
+
+	sid_len = wcslen(SidString);
+	message_sent = FALSE;*/
+	//以后实现
+	return TRUE;
 }
 
 
@@ -686,14 +906,148 @@ NTSTATUS Conf_Read(ULONG session_id)
 
 NTSTATUS Conf_Api_SetUserName(PROCESS* proc, ULONG64* parms)
 {
-	//下次实现
+	API_SET_USER_NAME_ARGS* args = (API_SET_USER_NAME_ARGS*)parms;
+	NTSTATUS status;
+	UNICODE_STRING64* user_uni;
+	WCHAR* user_sid, * user_name;
+	ULONG user_sid_len, user_name_len;
+	CONF_USER* user, * user1;
+	ULONG user_len;
+	KIRQL irql;
+
+	//此API必须由Sandboxie服务调用
+	if (proc || (PsGetCurrentProcessId() != Api_ServiceProcessId)) 
+	{
+		return STATUS_ACCESS_DENIED;
+	}
+	//探测用户目标路径参数（sidstring和username）
+	user_uni = args->sidstring.val;
+	if (!user_uni)
+		return STATUS_INVALID_PARAMETER;
+	ProbeForRead(user_uni, sizeof(UNICODE_STRING64), sizeof(ULONG64));
+
+	user_sid = (WCHAR*)user_uni->Buffer;
+	user_sid_len = user_uni->Length & ~1;
+	if ((!user_sid) || (!user_sid_len) || (user_sid_len > 1024))
+		return STATUS_INVALID_PARAMETER;
+	ProbeForRead(user_sid, user_sid_len, sizeof(WCHAR));
+
+	user_uni = args->username.val;
+	if (!user_uni)
+		return STATUS_INVALID_PARAMETER;
+	ProbeForRead(user_uni, sizeof(UNICODE_STRING64), sizeof(ULONG64));
+
+	user_name = (WCHAR*)user_uni->Buffer;
+	user_name_len = user_uni->Length & ~1;
+	if ((!user_name) || (!user_name_len) || (user_name_len > 1024))
+		return STATUS_INVALID_PARAMETER;
+	ProbeForRead(user_name, user_name_len, sizeof(WCHAR));
+
+	//创建一个conf_user元素
+	user_len = sizeof(CONF_USER) + user_sid_len + user_name_len + 8;
+	user = Mem_Alloc(Driver_Pool, user_len);
+	if (!user)
+		return STATUS_INSUFFICIENT_RESOURCES;
+
+	__try {
+
+		user->len = user_len;
+
+		user->sid = &user->space[0];
+		memcpy(user->sid, user_sid, user_sid_len);
+		user->sid[user_sid_len / sizeof(WCHAR)] = L'\0';
+		user->sid_len = wcslen(user->sid);
+
+		user->name = user->sid + user->sid_len + 1;
+		memcpy(user->name, user_name, user_name_len);
+		user->name[user_name_len / sizeof(WCHAR)] = L'\0';
+		user->name_len = wcslen(user->name);
+
+		while (1) {
+			WCHAR* ptr = wcschr(user->name, L'\\');
+			if (!ptr)
+				ptr = wcschr(user->name, L' ');
+			if (!ptr)
+				break;
+			*ptr = L'_';
+		}
+
+		status = STATUS_SUCCESS;
+
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) {
+		status = GetExceptionCode();
+	}
+	if (!NT_SUCCESS(status)) {
+		Mem_Free(user, user_len);
+		return status;
+	}
+	//如果我们找到一个匹配新的CONF_USER元素，则删除一个现有的CONF_USER元素。然后添加新条目
+	KeRaiseIrql(APC_LEVEL, &irql);
+	ExAcquireResourceExclusiveLite(Conf_Users_Lock, TRUE);
+
+	user1 = List_Head(&Conf_Users);
+	while (user1) {
+
+		if (user1->sid_len == user->sid_len &&
+			_wcsicmp(user1->sid, user->sid) == 0) {
+
+			List_Remove(&Conf_Users, user1);
+			Mem_Free(user1, user1->len);
+			break;
+		}
+
+		user1 = List_Next(user1);
+	}
+
+	List_Insert_After(&Conf_Users, NULL, user);
+
+	ExReleaseResourceLite(Conf_Users_Lock);
+	KeLowerIrql(irql);
+
+	KeSetEvent(Conf_Users_Event, 0, FALSE);
+
 	return STATUS_SUCCESS;
+
 }
 
 NTSTATUS Conf_Api_IsBoxEnabled(PROCESS* proc, ULONG64* parms)
 {
-	//下次实现
-	return STATUS_SUCCESS;
+	API_IS_BOX_ENABLED_ARGS* args = (API_IS_BOX_ENABLED_ARGS*)parms;
+	NTSTATUS status;
+	ULONG SessionId;
+	UNICODE_STRING SidString;
+	const WCHAR* sid;
+	WCHAR boxname[BOXNAME_COUNT];
+
+	if (!Api_CopyBoxNameFromUser(boxname, (WCHAR*)args->box_name.val))
+		return STATUS_INVALID_PARAMETER;
+
+	if (args->sid_string.val != NULL) {
+		sid = args->sid_string.val;
+		SessionId = args->session_id.val;
+		SidString.Buffer = NULL;
+		status = STATUS_SUCCESS;
+	}
+	else {
+		status = Process_GetSidStringAndSessionId(
+			NtCurrentProcess(), NULL, &SidString, &SessionId);
+		sid = SidString.Buffer;
+	}
+
+	if (NT_SUCCESS(status)) {
+
+		status = Conf_IsValidBox(boxname);
+		if (NT_SUCCESS(status)) {
+
+			if (!Conf_IsBoxEnabled(boxname, sid, SessionId))
+				status = STATUS_ACCOUNT_RESTRICTION;
+		}
+
+		RtlFreeUnicodeString(&SidString);
+	}
+
+	return status;
 }
 
 NTSTATUS Conf_Merge_Templates(CONF_DATA* data, ULONG session_id)

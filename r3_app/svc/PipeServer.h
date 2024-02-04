@@ -8,7 +8,7 @@
 
 extern "C" const ULONG tzuk;
 
-
+#define LONG_REPLY(ln)  (PipeServer::GetPipeServer()->AllocMsg(ln))
 #define SHORT_REPLY(st) (PipeServer::GetPipeServer()->AllocShortMsg(st))
 
 class PipeServer
@@ -41,6 +41,10 @@ public:
 
 	//获取呼叫者的会话id
 	static ULONG GetCallerSessionId();
+
+	//模拟调用方安全上下文
+	static ULONG ImpersonateCaller(MSG_HEADER** pmsg = NULL);
+
 protected:
 	//私有构造函数
 	PipeServer();
@@ -50,6 +54,8 @@ protected:
 	static void ThreadStub(void* parm);
 	//用于侦听hServerPort的线程函数
 	void Thread(void);
+	//Port Connect
+	void PortConnect(PORT_MESSAGE * msg);
 	//Port Request
 	void PortRequest(
 		HANDLE PortHandle, PORT_MESSAGE* msg, void* voidClient);

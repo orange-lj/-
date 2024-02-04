@@ -124,6 +124,24 @@ BOOLEAN MyIsCallerSigned(void)
 	return TRUE;
 }
 
+NTSTATUS MyGetSessionId(ULONG* SessionId)
+{
+	NTSTATUS status;
+	PROCESS_SESSION_INFORMATION info;
+	ULONG len;
+	len = sizeof(info);
+	status = ZwQueryInformationProcess(
+		NtCurrentProcess(), ProcessSessionInformation,
+		&info, sizeof(info), &len);
+	if (NT_SUCCESS(status))
+		*SessionId = info.SessionId;
+	else
+		*SessionId = 0;
+
+	return status;
+
+}
+
 //extern wchar_t g_uuid_str[40];
 //void InitFwUuid();
 //NTSTATUS MyValidateCertificate(void) 

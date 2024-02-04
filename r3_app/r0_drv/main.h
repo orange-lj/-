@@ -15,6 +15,7 @@ extern const ULONG tzuk;
 extern const WCHAR* Driver_S_1_5_18;
 extern ULONG Driver_OsVersion;
 extern POOL* Driver_Pool;
+extern WCHAR* Driver_Version;
 extern WCHAR* Driver_HomePathDos;
 extern WCHAR* Driver_RegistryPath;
 extern DRIVER_OBJECT* Driver_Object;

@@ -45,6 +45,15 @@
     <ClInclude Include="MyMsg.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="..\r0_drv\Boxes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Box.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BoxProc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="r3_app.cpp">
@@ -60,6 +69,15 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="MyMsg.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="..\r0_drv\Boxes.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Box.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="BoxProc.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

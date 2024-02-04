@@ -104,6 +104,7 @@ LONG SbieApi_SessionLeader(
 	HANDLE TokenHandle,
 	HANDLE* ProcessId);
 
+
 #ifdef __cplusplus
 }
 #endif
