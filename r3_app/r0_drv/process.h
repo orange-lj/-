@@ -1,7 +1,7 @@
 #pragma once
 //#include"pool.h"
 #include"main.h"
-
+#include"box.h"
 extern volatile BOOLEAN Process_ReadyToSandbox;
 
 #ifdef _WIN64
@@ -26,7 +26,7 @@ struct _PROCESS {
 
     // box parameters
 
-    //BOX* box;
+    BOX* box;
 
     // 可执行映像的全名和扩展名，以及映像是否从复制系统中加载的指示
 
@@ -206,6 +206,11 @@ void Process_GetProcessName(
 //如果ProcessId为NULL且当前沙箱进程计划为终止，则返回值将终止
 PROCESS* Process_Find(HANDLE ProcessId, KIRQL* out_irql);
 
+//枚举或计数沙盒中的进程
+NTSTATUS Process_Enumerate(
+    const WCHAR* boxname, BOOLEAN all_sessions, ULONG session_id,
+    ULONG* pids, ULONG* count);
 
+NTSTATUS Process_Api_Enum(PROCESS* proc, ULONG64* parms);
 
 extern PERESOURCE Process_ListLock;

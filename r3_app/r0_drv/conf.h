@@ -2,6 +2,16 @@
 //#include"pool.h"
 #include"main.h"
 
+
+struct _CONF_EXPAND_ARGS {
+
+    POOL* pool;
+    WCHAR* sandbox;
+    WCHAR* sid;
+    ULONG* session;
+
+};
+
 BOOLEAN Conf_Init(void);
 BOOLEAN Conf_Init_User(void);
 

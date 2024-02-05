@@ -186,8 +186,9 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\common\my_version.h" />
-    <ClInclude Include="..\r0_drv\Boxes.h" />
     <ClInclude Include="Box.h" />
+    <ClInclude Include="Boxes.h" />
+    <ClInclude Include="BoxFile.h" />
     <ClInclude Include="BoxProc.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="InitWait.h" />
@@ -196,11 +197,15 @@
     <ClInclude Include="r3_app.h" />
     <ClInclude Include="r3_appDlg.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="SbieIni.h" />
     <ClInclude Include="targetver.h" />
+    <ClInclude Include="UserSettings.h" />
+    <ClInclude Include="WindowTitleMap.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\r0_drv\Boxes.cpp" />
     <ClCompile Include="Box.cpp" />
+    <ClCompile Include="Boxes.cpp" />
+    <ClCompile Include="BoxFile.cpp" />
     <ClCompile Include="BoxProc.cpp" />
     <ClCompile Include="InitWait.cpp" />
     <ClCompile Include="MyMsg.cpp" />
@@ -212,6 +217,9 @@
     </ClCompile>
     <ClCompile Include="r3_app.cpp" />
     <ClCompile Include="r3_appDlg.cpp" />
+    <ClCompile Include="SbieIni.cpp" />
+    <ClCompile Include="UserSettings.cpp" />
+    <ClCompile Include="WindowTitleMap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="r3app.rc" />

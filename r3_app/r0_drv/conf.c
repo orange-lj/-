@@ -76,6 +76,7 @@ static NTSTATUS Conf_Merge_Global(
 static NTSTATUS Conf_Merge_Template(
 	CONF_DATA* data, ULONG session_id,
 	const WCHAR* tmpl_name, CONF_SECTION* section);
+static const WCHAR* Conf_Get_Section_Name(ULONG index, BOOLEAN skip_tmpl);
 
 #ifdef ALLOC_PRAGMA
 #pragma alloc_text (INIT, Conf_Init)
@@ -296,6 +297,14 @@ const WCHAR* Conf_Get(const WCHAR* section, const WCHAR* setting, ULONG index)
 			value = Conf_Get_Helper(
 				Conf_GlobalSettings, setting, &index, skip_tmpl);
 		}
+	}
+	else if (have_section && (!have_setting)) 
+	{
+	
+	}
+	else if ((!have_section) && (!have_setting)) 
+	{
+		value = Conf_Get_Section_Name(index & 0xFFFF, skip_tmpl);
 	}
 	ExReleaseResourceLite(Conf_Lock);
 	KeLowerIrql(irql);
@@ -748,6 +757,36 @@ NTSTATUS Conf_Merge_Template(CONF_DATA* data, ULONG session_id, const WCHAR* tmp
 
 	}
 	return STATUS_SUCCESS;
+}
+
+const WCHAR* Conf_Get_Section_Name(ULONG index, BOOLEAN skip_tmpl)
+{
+	WCHAR* value;
+	CONF_SECTION* section;
+
+	value = NULL;
+
+	section = List_Head(&Conf_Data.sections);
+	while (section) 
+	{
+		CONF_SECTION* next_section = List_Next(section);
+		if (_wcsicmp(section->name, Conf_GlobalSettings) == 0) {
+			section = next_section;
+			continue;
+		}
+		if (skip_tmpl && section->from_template) {
+			// we can break because template sections come after
+			// all non-template sections
+			break;
+		}
+		if (index == 0) {
+			value = section->name;
+			break;
+		}
+		--index;
+		section = next_section;
+	}
+	return value;
 }
 
 NTSTATUS Conf_Read(ULONG session_id)

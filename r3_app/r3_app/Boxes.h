@@ -11,7 +11,10 @@ class Boxes:public CObArray
 public:
 	~Boxes();
 	void ReloadBoxes();
+	void RefreshProcesses();
 	static Boxes& GetInstance();
-	Box& get();
+	Box& GetBox(int index) const;
+	Box& GetBox(const CString& name) const;
+	void ReadExpandedView();
 };
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "msgids.h"
-
-
+#include"../common/defines.h"
+#define CONF_LINE_LEN               2000 
 struct tagSBIE_INI_GET_VERSION_REQ
 {
     MSG_HEADER h;

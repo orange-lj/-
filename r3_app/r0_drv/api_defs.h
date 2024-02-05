@@ -15,6 +15,8 @@
 //保持API_NUM_ARGS与core/low/entry中的系统服务代码同步。
 #define API_NUM_ARGS                8
 
+#define API_MAX_PIDS                512
+
 enum {
 	API_FIRST = 0x12340000L,
     API_GET_VERSION,

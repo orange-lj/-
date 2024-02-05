@@ -5,6 +5,8 @@
 #include"syscall.h"
 #include"../common/map.h"
 #include"token.h"
+#include"api_defs.h"
+#include"util.h"
 
 HASH_MAP Process_Map;
 HASH_MAP Process_MapDfp;
@@ -81,7 +83,7 @@ BOOLEAN Process_Init(void)
 	//Api_SetFunction(API_QUERY_BOX_PATH, Process_Api_QueryBoxPath);
 	//Api_SetFunction(API_QUERY_PROCESS_PATH, Process_Api_QueryProcessPath);
 	//Api_SetFunction(API_QUERY_PATH_LIST, Process_Api_QueryPathList);
-	//Api_SetFunction(API_ENUM_PROCESSES, Process_Api_Enum);
+	Api_SetFunction(API_ENUM_PROCESSES, Process_Api_Enum);
 
 	return TRUE;
 }
@@ -289,6 +291,127 @@ PROCESS* Process_Find(HANDLE ProcessId, KIRQL* out_irql)
 	
 	}
 	return proc;
+}
+
+NTSTATUS Process_Enumerate(const WCHAR* boxname, BOOLEAN all_sessions, ULONG session_id, ULONG* pids, ULONG* count)
+{
+	NTSTATUS status;
+	PROCESS* proc1;
+	ULONG num;
+	KIRQL irql;
+
+	if (count == NULL)
+		return STATUS_INVALID_PARAMETER;
+
+	//仅返回调用方用户在其登录会话中的进程
+	if ((!all_sessions) && (session_id == -1)) 
+	{
+		status = MyGetSessionId(&session_id);
+		if (!NT_SUCCESS(status))
+			return status;
+	}
+	KeRaiseIrql(APC_LEVEL, &irql);
+	ExAcquireResourceSharedLite(Process_ListLock, TRUE);
+	__try 
+	{
+		num = 0;
+		//全局计数检索的快速快捷方式
+		if (pids == NULL && (!boxname[0]) && all_sessions) 
+		{ // no pids, all boxes, all sessions
+			num = Process_Map.nnodes;
+			goto done;
+		}
+		map_iter_t iter = map_iter();
+		while (map_next(&Process_Map, &iter)) 
+		{
+			proc1 = iter.value;
+			BOX* box1 = proc1->box;
+			if (box1 && !proc1->bHostInject) 
+			{
+				BOOLEAN same_box =
+					(!boxname[0]) || (_wcsicmp(box1->name, boxname) == 0);
+				BOOLEAN same_session =
+					(all_sessions || box1->session_id == session_id);
+				if (same_box && same_session) {
+					if (pids) {
+						if (num >= *count)
+							break;
+						pids[num] = (ULONG)(ULONG_PTR)proc1->pid;
+					}
+					++num;
+				}
+			}
+		}
+done:
+		*count = num;
+		status = STATUS_SUCCESS;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER) 
+	{
+		status = GetExceptionCode();
+	}
+	ExReleaseResourceLite(Process_ListLock);
+	KeLowerIrql(irql);
+
+	return status;
+}
+
+NTSTATUS Process_Api_Enum(PROCESS* proc, ULONG64* parms)
+{
+	NTSTATUS status;
+	ULONG count;
+	ULONG* user_pids;                   // user mode ULONG [512]
+	WCHAR* user_boxname;                // user mode WCHAR [BOXNAME_COUNT]
+	BOOLEAN all_sessions;
+	ULONG session_id;
+	WCHAR boxname[BOXNAME_COUNT];
+	ULONG* user_count;
+	//从第二个参数获取boxname
+	memzero(boxname, sizeof(boxname));
+	if (proc)
+		wcscpy(boxname, proc->box->name);
+	user_boxname = (WCHAR*)parms[2];
+	if ((!boxname[0]) && user_boxname) 
+	{
+		ProbeForRead(user_boxname, sizeof(WCHAR) * (BOXNAME_COUNT - 2), sizeof(UCHAR));
+		if (user_boxname[0])
+			wcsncpy(boxname, user_boxname, (BOXNAME_COUNT - 2));
+	}
+	//从第三个参数获取“所有用户/仅当前用户”标志
+	all_sessions = FALSE;
+	if (parms[3])
+		all_sessions = TRUE;
+
+	session_id = (ULONG)parms[4];
+	
+	//从第一个参数获取用户pid缓冲区
+	user_count = (ULONG*)parms[5];
+	user_pids = (ULONG*)parms[1];
+	if (user_count) 
+	{
+	
+	}
+	else //遗留案件
+	{
+		if (!user_pids)
+			return STATUS_INVALID_PARAMETER;
+		count = API_MAX_PIDS - 1;
+		user_count = user_pids;
+		user_pids += 1;
+	}
+	ProbeForWrite(user_count, sizeof(ULONG), sizeof(ULONG));
+	if (user_pids) {
+		ProbeForWrite(user_pids, sizeof(ULONG) * count, sizeof(ULONG));
+	}
+	status = Process_Enumerate(boxname, all_sessions, session_id,
+		user_pids, &count);
+	if (!NT_SUCCESS(status))
+		return status;
+
+	*user_count = count;
+
+	return status;
+
 }
 
 NTSTATUS Process_Low_Api_InjectComplete(PROCESS* proc, ULONG64* parms)

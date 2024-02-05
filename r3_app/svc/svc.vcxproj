@@ -145,6 +145,7 @@
   <ItemGroup>
     <ClInclude Include="..\common\list.h" />
     <ClInclude Include="ComServer.h" />
+    <ClInclude Include="crc.h" />
     <ClInclude Include="DriverAssist.h" />
     <ClInclude Include="EpMapperServer.h" />
     <ClInclude Include="FileServer.h" />
@@ -170,6 +171,7 @@
   <ItemGroup>
     <ClCompile Include="..\common\list.c" />
     <ClCompile Include="ComServer.cpp" />
+    <ClCompile Include="crc.c" />
     <ClCompile Include="DriverAssist.cpp" />
     <ClCompile Include="EpMapperServer.cpp" />
     <ClCompile Include="FileServer.cpp" />

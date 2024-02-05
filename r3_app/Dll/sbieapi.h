@@ -105,6 +105,29 @@ LONG SbieApi_SessionLeader(
 	HANDLE* ProcessId);
 
 
+SBIEAPI_EXPORT
+LONG SbieApi_EnumBoxesEx(
+	LONG index,                     // initialize to -1
+	WCHAR* box_name,                // WCHAR [34]
+	BOOLEAN ignore_hidden);
+
+
+SBIEAPI_EXPORT
+LONG SbieApi_IsBoxEnabled(
+	const WCHAR* box_name);
+
+
+SBIEAPI_EXPORT
+LONG SbieApi_EnumProcessEx(
+	const WCHAR* box_name,          // WCHAR [34]
+	BOOLEAN all_sessions,
+	ULONG which_session,            // -1 for current session
+	ULONG* boxed_pids,             // ULONG [512]
+	ULONG* boxed_count);
+
+#define SbieApi_EnumProcess(box_name,boxed_pids) \
+    SbieApi_EnumProcessEx(box_name,FALSE,-1,boxed_pids, NULL)
+
 #ifdef __cplusplus
 }
 #endif

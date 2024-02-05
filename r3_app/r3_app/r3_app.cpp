@@ -6,6 +6,7 @@
 #include "framework.h"
 #include "r3_app.h"
 #include "r3_appDlg.h"
+#include"Boxes.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -168,8 +169,8 @@ BOOL Cr3appApp::InitInstance()
 	SbieApi_SessionLeader(0, NULL);
 
 
-	//接任Sandboxie会议负责人
-	SbieApi_SessionLeader(0, NULL);
+	//刷新进程
+	Boxes::GetInstance().RefreshProcesses();
 
 
 

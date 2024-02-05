@@ -23,6 +23,9 @@ extern UNICODE_STRING Driver_Altitude;
 extern ULONG Driver_OsBuild;
 extern WCHAR* Driver_HomePathNt;
 extern ULONG  Driver_HomePathNt_Len;
+
+typedef struct _BOX                 BOX;
+typedef struct _CONF_EXPAND_ARGS    CONF_EXPAND_ARGS;
 typedef struct _THREAD              THREAD;
 typedef struct _PROCESS             PROCESS;
 

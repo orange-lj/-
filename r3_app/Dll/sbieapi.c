@@ -503,3 +503,52 @@ LONG SbieApi_SessionLeader(HANDLE TokenHandle, HANDLE* ProcessId)
 
     return status;
 }
+
+SBIEAPI_EXPORT LONG SbieApi_EnumBoxesEx(LONG index, WCHAR* box_name, BOOLEAN return_all_sections)
+{
+    LONG rc;
+    while(1)
+    {
+        ++index;
+        rc = SbieApi_QueryConf(NULL, NULL, index | CONF_GET_NO_TEMPLS | CONF_GET_NO_EXPAND, box_name, sizeof(WCHAR) * BOXNAME_COUNT);
+        if (rc == STATUS_BUFFER_TOO_SMALL)
+            continue;
+        if (!box_name[0])
+            return -1;
+        if (return_all_sections /*||
+            (SbieApi_IsBoxEnabled(box_name) == STATUS_SUCCESS)*/)
+            return index;
+    }
+}
+
+SBIEAPI_EXPORT LONG SbieApi_IsBoxEnabled(const WCHAR* box_name)
+{
+    NTSTATUS status;
+    __declspec(align(8)) ULONG64 parms[API_NUM_ARGS];
+    API_IS_BOX_ENABLED_ARGS* args = (API_IS_BOX_ENABLED_ARGS*)parms;
+    memzero(parms, sizeof(parms));
+    args->func_code = API_IS_BOX_ENABLED;
+    args->box_name.val64 = (ULONG64)(ULONG_PTR)box_name;
+    status = SbieApi_Ioctl(parms);
+    return status;
+}
+
+LONG SbieApi_EnumProcessEx(const WCHAR* box_name, BOOLEAN all_sessions, ULONG which_session, ULONG* boxed_pids, ULONG* boxed_count)
+{
+    NTSTATUS status;
+    __declspec(align(8)) ULONG64 parms[API_NUM_ARGS];
+
+    memset(parms, 0, sizeof(parms));
+    parms[0] = API_ENUM_PROCESSES;
+    parms[1] = (ULONG64)(ULONG_PTR)boxed_pids;
+    parms[2] = (ULONG64)(ULONG_PTR)box_name;
+    parms[3] = (ULONG64)(ULONG_PTR)all_sessions;
+    parms[4] = (ULONG64)(LONG_PTR)which_session;
+    parms[5] = (ULONG64)(LONG_PTR)boxed_count;
+    status = SbieApi_Ioctl(parms);
+
+    if (!NT_SUCCESS(status))
+        boxed_pids[0] = 0;
+
+    return status;
+}

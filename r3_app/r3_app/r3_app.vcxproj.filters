@@ -45,13 +45,25 @@
     <ClInclude Include="MyMsg.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="..\r0_drv\Boxes.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
     <ClInclude Include="Box.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="BoxProc.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="BoxFile.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Boxes.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SbieIni.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="UserSettings.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="WindowTitleMap.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>
@@ -71,13 +83,25 @@
     <ClCompile Include="MyMsg.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="..\r0_drv\Boxes.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="Box.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="BoxProc.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="BoxFile.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Boxes.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="SbieIni.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="UserSettings.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="WindowTitleMap.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
