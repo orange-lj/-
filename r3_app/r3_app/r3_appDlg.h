@@ -11,7 +11,7 @@ class Cr3appDlg : public CDialogEx
 // 构造
 public:
 	Cr3appDlg(CWnd* pParent = nullptr);	// 标准构造函数
-	
+	Cr3appDlg(BOOL ForceVisible, BOOL ForceSync, BOOL PostSetup);
 // 对话框数据
 #ifdef AFX_DESIGN_TIME
 	enum { IDD = IDD_R3_APP_DIALOG };
@@ -23,6 +23,8 @@ public:
 
 // 实现
 protected:
+	BOOL m_ShowWhatsNew;
+	BOOL m_AlwaysOnTop;
 	HICON m_hIcon;
 
 	// 生成的消息映射函数

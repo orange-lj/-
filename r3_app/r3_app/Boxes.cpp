@@ -1,7 +1,7 @@
 #include "Boxes.h"
 #include"../Dll/sbieapi.h"
 #include"UserSettings.h"
-
+#include"WindowTitleMap.h"
 
 static const CString _BoxExpandedView(L"BoxExpandedView");
 
@@ -81,7 +81,11 @@ void Boxes::ReloadBoxes()
 
 void Boxes::RefreshProcesses()
 {
-
+	WindowTitleMap::GetInstance().Refresh();
+	for (int i = 0; i < GetSize(); ++i) 
+	{
+	GetBox(i).
+	}
 }
 
 Boxes& Boxes::GetInstance()

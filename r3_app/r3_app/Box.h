@@ -12,7 +12,7 @@ class Box
 public:
 
     Box(const CString& name);
-
+    BoxProc& GetBoxProc();
     const CString& GetName() const;
     void SetExpandedView(BOOL view);
 

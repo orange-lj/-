@@ -7,6 +7,7 @@
 #include "r3_app.h"
 #include "r3_appDlg.h"
 #include"Boxes.h"
+#include"AutoPlay.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -173,9 +174,12 @@ BOOL Cr3appApp::InitInstance()
 	Boxes::GetInstance().RefreshProcesses();
 
 
+	//设置自动取消
+	AutoPlay::Install();
 
-	//Cr3appDlg dlg;
-	//m_pMainWnd = &dlg;
+	Cr3appDlg dlg();
+	m_pMainWnd = &dlg;
+	dlg.DoModal();
 	//INT_PTR nResponse = dlg.DoModal();
 	//if (nResponse == IDOK)
 	//{

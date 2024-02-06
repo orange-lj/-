@@ -7,13 +7,13 @@
 #include "r3_app.h"
 #include "r3_appDlg.h"
 #include "afxdialogex.h"
-
+#include"UserSettings.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
-
+static const WCHAR* _AlwaysOnTop = L"AlwaysOnTop";
 
 // 用于应用程序“关于”菜单项的 CAboutDlg 对话框
 
@@ -56,6 +56,12 @@ Cr3appDlg::Cr3appDlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_R3_APP_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
+}
+
+Cr3appDlg::Cr3appDlg(BOOL ForceVisible, BOOL ForceSync, BOOL PostSetup)
+{
+	m_ShowWhatsNew = PostSetup;
+	UserSettings::GetInstance().GetBool(_AlwaysOnTop, m_AlwaysOnTop, FALSE);
 }
 
 void Cr3appDlg::DoDataExchange(CDataExchange* pDX)

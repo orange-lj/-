@@ -83,11 +83,23 @@ BOOL WindowTitleMap::EnumProc(HWND hwnd, LPARAM lParam)
     return TRUE;
 }
 
+void WindowTitleMap::RefreshIcons()
+{
+    WCHAR path[300];
+    void* key, * ptr;
+    POSITION pos = GetStartPosition();
+    while (pos) 
+    {
+    
+    }
+}
+
 void WindowTitleMap::Refresh()
 {
     ++m_counter;
     SbieApi_EnumProcess(NULL, m_pids);
     EnumWindows(WindowTitleMap::EnumProc, (LPARAM)this);
+    RefreshIcons();
 }
 
 WindowTitleMap& WindowTitleMap::GetInstance()

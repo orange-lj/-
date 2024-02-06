@@ -8,6 +8,7 @@ class WindowTitleMap:public CMapPtrToPtr
 	WindowTitleMap();
 	BOOL ShouldIgnoreProcess(ULONG pid);
 	static BOOL EnumProc(HWND hwnd, LPARAM lParam);
+	void RefreshIcons();
 public:
 	~WindowTitleMap();
 	void Refresh();

@@ -23,6 +23,13 @@ Box::Box(const CString& name)
     m_TemporarilyDisableQuickRecover = FALSE;
 }
 
+BoxProc& Box::GetBoxProc()
+{
+    if (!m_BoxProc)
+        m_BoxProc = new BoxProc(m_name);
+    return *m_BoxProc;
+}
+
 const CString& Box::GetName() const
 {
     return m_name;

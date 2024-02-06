@@ -66,6 +66,9 @@
     <ClInclude Include="WindowTitleMap.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="AutoPlay.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="r3_app.cpp">
@@ -102,6 +105,9 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="WindowTitleMap.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="AutoPlay.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
